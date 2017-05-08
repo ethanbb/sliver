@@ -1,12 +1,9 @@
 from __future__ import print_function, division, absolute_import, unicode_literals
-from tf_unet import unet
-from tf_unet import util
+from tf_unet_1 import unet
+from tf_unet_1 import util
 from data_gen import CTScanDataProvider
 
 if __name__ == '__main__':
-    nx = 572
-    ny = 572
-
     training_iters = 20
     epochs = 10
     dropout = 0.75  # Dropout, probability to keep units

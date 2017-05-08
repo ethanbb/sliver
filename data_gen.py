@@ -25,30 +25,30 @@ class CTScanDataProvider(object):
         self.a_max = a_max if a_min is not None else np.inf
         self.sample_index = -1
         self.num_samples = 28
+        self.depth = 1
 
     def _load_data_and_label(self):
         data, label = self._next_data()
 
         nx = data.shape[1]
         ny = data.shape[0]
-        batch = data.shape[2]
-
-        self.channels = batch
-        import pdb; pdb.set_trace()
+        self.depth = data.shape[2]
 
         # train_data = self._process_data(data)
         # labels = self._process_labels(label)
-        train_data = data
-        labels = np.zeros((nx, ny, 2 * batch))
 
-        for i in range(batch):
+        train_data = data
+        labels = np.zeros((nx, ny, 2 * self.depth))
+
+        for i in range(self.depth):
             labels[..., 2 * i] = (label[..., i] == 0)
             labels[..., (2 * i) + 1] = (label[..., i] == 1)
 
         train_data, labels = self._post_process(train_data, labels)
 
         # return train_data.reshape(1, ny, nx, self.channels), labels.reshape(1, ny, nx, self.n_class),
-        return train_data.reshape(1, ny, nx, self.channels), labels.reshape(1, ny, nx, self.n_class * batch),
+        # train_data = np.transpose(train_data, (2, 1, 0))
+        return train_data.reshape(self.depth, ny, nx, self.channels), labels.reshape(self.depth, ny, nx, self.n_class),
 
     # def _process_labels(self, label):
     #     if self.n_class == 2:
@@ -77,20 +77,20 @@ class CTScanDataProvider(object):
         """
         return data, labels
 
-    def __call__(self, n):
+    def __call__(self, n=1):
+        # FOR NOW, ASSUME BATCH SIZE 1 ALWAYS
         train_data, labels = self._load_data_and_label()
-        nx = train_data.shape[1]
-        ny = train_data.shape[2]
+        # nx = train_data.shape[1]
+        # ny = train_data.shape[2]
 
-        X = np.zeros((n, nx, ny, self.channels))
-        Y = np.zeros((n, nx, ny, self.n_class * self.channels))
+        # X = np.zeros((1, nx, ny, self.channels * self.depth))
+        # Y = np.zeros((1, nx, ny, self.n_class * self.depth))
+        #
+        # X[0] = train_data
+        # Y[0] = labels
 
-        X[0] = train_data
-        Y[0] = labels
-        for i in range(1, n):
-            train_data, labels = self._load_data_and_label()
-            X[i] = train_data
-            Y[i] = labels
+        X = train_data
+        Y = labels
 
         return X, Y
 

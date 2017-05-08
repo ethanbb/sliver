@@ -1,14 +1,19 @@
-import numpy as np
 import nibabel as nib
+import numpy as np
+import os
 import pdb
+
+
+# library: http://nipy.org/nibabel/gettingstarted.html
 
 example_filename = './volume-1.nii'
 
-img = nib.load(example_filename)
-print 'here is the image'
-print img.shape
-print img.get_data_dtype()
 
-data = img.get_data()
-print 'here is the data'
-print data1.shape
+def nifti_to_nparray(filename):
+    img = nib.load(filename)
+    data = img.get_data()
+    return data
+
+
+def convert_batch_volumes(folder):
+    nifti_files = []

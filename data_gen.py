@@ -34,21 +34,20 @@ class CTScanDataProvider(object):
         ny = data.shape[0]
         self.depth = data.shape[2]
 
-        # train_data = self._process_data(data)
+        train_data = self._process_data(data)
         # labels = self._process_labels(label)
+        # train_data = data
 
-        train_data = data
         labels = np.zeros((nx, ny, 2 * self.depth))
-
-        for i in range(self.depth):
-            labels[..., 2 * i] = (label[..., i] == 0)
+        for i in range(0, self.depth):
+            labels[..., (2 * i)] = (label[..., i] == 0)
             labels[..., (2 * i) + 1] = (label[..., i] == 1)
 
         train_data, labels = self._post_process(train_data, labels)
 
-        # return train_data.reshape(1, ny, nx, self.channels), labels.reshape(1, ny, nx, self.n_class),
-        # train_data = np.transpose(train_data, (2, 1, 0))
-        return train_data.reshape(self.depth, ny, nx, self.channels), labels.reshape(self.depth, ny, nx, self.n_class),
+        return train_data.reshape(self.depth, ny, nx, self.channels), labels.reshape(self.depth, ny, nx, self.n_class)
+        # import pdb; pdb.set_trace()
+        # return train_data[1, :, :, :].reshape(1, 512, 512, 1), labels[1, :, :, :].reshape(1, 512, 512, 2)
 
     # def _process_labels(self, label):
     #     if self.n_class == 2:
@@ -60,13 +59,13 @@ class CTScanDataProvider(object):
     #         return labels
     #
     #     return label
-    #
-    # def _process_data(self, data):
-    #     # normalization
-    #     data = np.clip(np.fabs(data), self.a_min, self.a_max)
-    #     data -= np.amin(data)
-    #     data /= np.amax(data)
-    #     return data
+
+    def _process_data(self, data):
+        # normalization
+        data = np.clip(np.fabs(data), self.a_min, self.a_max)
+        data -= np.amin(data)
+        data /= np.amax(data)
+        return data
 
     def _post_process(self, data, labels):
         """
@@ -101,10 +100,10 @@ class CTScanDataProvider(object):
 
     def _next_data(self):
         self._cycle_file()
-        data_path = npy_folder + 'volume-' + str(self.sample_index) + '.npy'
-        label_path = npy_folder + 'segmentation-' + str(self.sample_index) + '.npy'
+        data_path = npy_folder + 'volume-' + str(self.sample_index)
+        label_path = npy_folder + 'segmentation-' + str(self.sample_index)
 
-        data = np.load(data_path)
-        label = np.load(label_path)
+        data = np.load(data_path + '.npy')
+        label = np.load(label_path + '.npy')
 
         return data, label

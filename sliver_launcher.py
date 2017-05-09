@@ -5,7 +5,7 @@ from data_gen import CTScanDataProvider
 
 if __name__ == '__main__':
     training_iters = 20
-    epochs = 10
+    epochs = 20
     dropout = 0.75  # Dropout, probability to keep units
     display_step = 2
     restore = False
@@ -20,7 +20,8 @@ if __name__ == '__main__':
                     features_root=16,
                     cost="dice_coefficient")
 
-    trainer = unet.Trainer(net, optimizer="momentum", opt_kwargs=dict(momentum=0.2))
+    trainer = unet.Trainer(net, optimizer="momentum",
+                           opt_kwargs=dict(momentum=0.2, learning_rate=0.01))
     path = trainer.train(generator, "./unet_trained",
                          training_iters=training_iters,
                          epochs=epochs,

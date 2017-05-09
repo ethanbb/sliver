@@ -19,7 +19,15 @@ def convert_and_save_batch(folder, data_type):
         print 'converting ' + data_type + ' ' + str(i)
         file_name = folder + data_type + '-' + str(i)
         data = nifti_to_nparray(file_name + '.nii')
-        npy_name = folder + '/npy_data/' + data_type + '-' + str(i)
+
+        # Concatenate an end-token at the end of the volume/segmentation
+        x = data.shape[1]
+        y = data.shape[0]
+        end_token = np.ones((y, x, 1)) * -1
+        data = np.concatenate((data, end_token), 2)
+
+        # Save the np array
+        npy_name = folder + 'npy_data/' + data_type + '-' + str(i)
         np.save(npy_name, data)
         print npy_name + ' saved'
 

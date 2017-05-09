@@ -18,7 +18,7 @@ class CTScanDataProvider(object):
     :param a_max: (optional) max value used for clipping
     """
     channels = 1
-    n_class = 2
+    n_class = 3
 
     def __init__(self, a_min=None, a_max=None):
         self.a_min = a_min if a_min is not None else -np.inf
@@ -38,12 +38,18 @@ class CTScanDataProvider(object):
         # labels = self._process_labels(label)
         # train_data = data
 
-        labels = np.zeros((nx, ny, 2 * self.depth))
-        for i in range(0, self.depth):
-            labels[..., (2 * i)] = (label[..., i] == 0)
-            labels[..., (2 * i) + 1] = (label[..., i] == 1)
 
-        train_data, labels = self._post_process(train_data, labels)
+        # train_data, labels = self._post_process(train_data, labels)
+        train_data = np.transpose(train_data, (2, 1, 0))
+        label = np.transpose(label, (2, 1, 0))
+
+
+        labels = np.zeros((self.depth, nx, ny, self.n_class))
+        for i in range(0, self.depth):
+            labels[i, :, :, 0] = (label[i, ...] == 0)  # 0 is background
+            labels[i, :, :, 1] = (label[i, ...] == 1)  # 1 is liver
+            labels[i, :, :, 2] = (label[i, ...] == 2)  # 2 is tumor
+        # import pdb; pdb.set_trace()
 
         return train_data.reshape(self.depth, ny, nx, self.channels), labels.reshape(self.depth, ny, nx, self.n_class)
         # import pdb; pdb.set_trace()

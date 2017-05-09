@@ -18,53 +18,36 @@ class CTScanDataProvider(object):
     :param a_max: (optional) max value used for clipping
     """
     channels = 1
-    n_class = 3
+    n_class = 4
 
     def __init__(self, a_min=None, a_max=None):
         self.a_min = a_min if a_min is not None else -np.inf
         self.a_max = a_max if a_min is not None else np.inf
-        self.sample_index = -1
+        self.volume_index = -1
+        self.volume_depth = -1
+        self.frame_index = -1
         self.num_samples = 28
-        self.depth = 1
 
     def _load_data_and_label(self):
         data, label = self._next_data()
 
         nx = data.shape[1]
         ny = data.shape[0]
-        self.depth = data.shape[2]
 
         train_data = self._process_data(data)
-        # labels = self._process_labels(label)
-        # train_data = data
+        labels = self._process_labels(label)
 
+        return train_data.reshape(1, ny, nx, self.channels), labels.reshape(1, ny, nx, self.n_class)
 
-        # train_data, labels = self._post_process(train_data, labels)
-        train_data = np.transpose(train_data, (2, 1, 0))
-        label = np.transpose(label, (2, 1, 0))
-
-
-        labels = np.zeros((self.depth, nx, ny, self.n_class))
-        for i in range(0, self.depth):
-            labels[i, :, :, 0] = (label[i, ...] == 0)  # 0 is background
-            labels[i, :, :, 1] = (label[i, ...] == 1)  # 1 is liver
-            labels[i, :, :, 2] = (label[i, ...] == 2)  # 2 is tumor
-        # import pdb; pdb.set_trace()
-
-        return train_data.reshape(self.depth, ny, nx, self.channels), labels.reshape(self.depth, ny, nx, self.n_class)
-        # import pdb; pdb.set_trace()
-        # return train_data[1, :, :, :].reshape(1, 512, 512, 1), labels[1, :, :, :].reshape(1, 512, 512, 2)
-
-    # def _process_labels(self, label):
-    #     if self.n_class == 2:
-    #         nx = label.shape[1]
-    #         ny = label.shape[0]
-    #         labels = np.zeros((ny, nx, self.n_class), dtype=np.float32)
-    #         labels[..., 1] = label
-    #         labels[..., 0] = ~label
-    #         return labels
-    #
-    #     return label
+    def _process_labels(self, label):
+        nx = label.shape[1]
+        ny = label.shape[0]
+        labels = np.zeros((ny, nx, self.n_class), dtype=np.float32)
+        labels[..., 0] = (label == 0)
+        labels[..., 1] = (label == 1)
+        labels[..., 2] = (label == 2)
+        labels[..., 3] = (label == -1)
+        return labels
 
     def _process_data(self, data):
         # normalization
@@ -83,33 +66,47 @@ class CTScanDataProvider(object):
         return data, labels
 
     def __call__(self, n=1):
-        # FOR NOW, ASSUME BATCH SIZE 1 ALWAYS
         train_data, labels = self._load_data_and_label()
-        # nx = train_data.shape[1]
-        # ny = train_data.shape[2]
+        nx = train_data.shape[1]
+        ny = train_data.shape[2]
 
-        # X = np.zeros((1, nx, ny, self.channels * self.depth))
-        # Y = np.zeros((1, nx, ny, self.n_class * self.depth))
-        #
-        # X[0] = train_data
-        # Y[0] = labels
+        X = np.zeros((n, nx, ny, self.channels))
+        Y = np.zeros((n, nx, ny, self.n_class))
 
-        X = train_data
-        Y = labels
+        X[0] = train_data
+        Y[0] = labels
+        for i in range(1, n):
+            train_data, labels = self._load_data_and_label()
+            X[i] = train_data
+            Y[i] = labels
 
         return X, Y
 
-    def _cycle_file(self):
-        self.sample_index += 1
-        if self.sample_index >= self.num_samples:
-            self.sample_index = 0
+    def _cycle_frame(self):
+        self.frame_index += 1
+        if self.frame_index >= self.volume_depth:
+            self.frame_index = 0
+            return True
+        return False  # returns False if we have not finished the volume yet
 
     def _next_data(self):
-        self._cycle_file()
-        data_path = npy_folder + 'volume-' + str(self.sample_index)
-        label_path = npy_folder + 'segmentation-' + str(self.sample_index)
+        if (self._cycle_frame()):
+            self.data, self.label = self._next_volume()
+        return self.data[:, :, self.frame_index], self.label[:, :, self.frame_index]
+
+    def _cycle_volume(self):
+        self.volume_index += 1
+        if self.volume_index >= self.num_samples:
+            self.volume_index = 0
+
+    def _next_volume(self):
+        self._cycle_volume()
+        data_path = npy_folder + 'volume-' + str(self.volume_index)
+        label_path = npy_folder + 'segmentation-' + str(self.volume_index)
 
         data = np.load(data_path + '.npy')
         label = np.load(label_path + '.npy')
+
+        self.volume_depth = data.shape[2]
 
         return data, label

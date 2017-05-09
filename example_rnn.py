@@ -16,9 +16,9 @@ x = [tf.placeholder(tf.float32, shape=[None] + input_shape)
 filters_fw = 10
 filters_bw = 20
 
-cell_fw = conv_rnn_cell.BasicConvRNNCell(
+cell_fw = conv_rnn_cell.BasicConvLSTMCell(
     input_shape, [3, 3, filters_fw], [1, 1, 1, 1], 'SAME')
-cell_bw = conv_rnn_cell.BasicConvRNNCell(
+cell_bw = conv_rnn_cell.BasicConvLSTMCell(
     input_shape, [3, 3, filters_bw], [1, 1, 1, 1], 'SAME')
 
 (y, state_fw, state_bw) = conv_rnn.static_bidirectional_rnn(

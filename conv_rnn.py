@@ -13,18 +13,15 @@ def static_rnn(cell, inputs, initial_state=None, dtype=None,
     inputs is a list of [batch x height x width x channels] tensors
     """
     if isinstance(cell, crc.BasicConvRNNCell):
-        inputs = [array_ops.transpose(input, perm=[0, 3, 1, 2])
-                  for input in inputs]
+        inputs = [crc.transpose(x, [0, 3, 1, 2]) for x in inputs]
         if initial_state is not None:
-            initial_state = array_ops.transpose(initial_state,
-                                                perm=[0, 3, 1, 2])
+            initial_state = crc.transpose(initial_state, [0, 3, 1, 2])
 
         (outputs, state) = rnn.static_rnn(
             cell, inputs, initial_state, dtype, sequence_length, scope)
 
-        outputs = [array_ops.transpose(output, perm=[0, 2, 3, 1])
-                   for output in outputs]
-        state = array_ops.transpose(state, perm=[0, 2, 3, 1])
+        outputs = [crc.transpose(output, [0, 2, 3, 1]) for output in outputs]
+        state = crc.transpose(state, [0, 2, 3, 1])
         return (outputs, state)
 
 
@@ -35,21 +32,17 @@ def static_bidirectional_rnn(cell_fw, cell_bw, inputs,
     inputs is a list of [batch x height x width x channels] tensors
     """
     if isinstance(cell_fw, crc.BasicConvRNNCell):
-        inputs = [array_ops.transpose(input, perm=[0, 3, 1, 2])
-                  for input in inputs]
+        inputs = [crc.transpose(x, [0, 3, 1, 2]) for x in inputs]
         if initial_state_fw is not None:
-            initial_state_fw = array_ops.transpose(initial_state_fw,
-                                                   perm=[0, 3, 1, 2])
+            initial_state_fw = crc.transpose(initial_state_fw, [0, 3, 1, 2])
         if initial_state_bw is not None:
-            initial_state_bw = array_ops.transpose(initial_state_bw,
-                                                   perm=[0, 3, 1, 2])
+            initial_state_bw = crc.transpose(initial_state_bw, [0, 3, 1, 2])
 
         (outputs, state_fw, state_bw) = rnn.static_bidirectional_rnn(
             cell_fw, cell_bw, inputs, initial_state_fw, initial_state_bw,
             dtype, sequence_length, scope)
 
-        outputs = [array_ops.transpose(output, perm=[0, 2, 3, 1])
-                   for output in outputs]
-        state_fw = array_ops.transpose(state_fw, perm=[0, 2, 3, 1])
-        state_bw = array_ops.transpose(state_bw, perm=[0, 2, 3, 1])
+        outputs = [crc.transpose(output, [0, 2, 3, 1]) for output in outputs]
+        state_fw = crc.transpose(state_fw, [0, 2, 3, 1])
+        state_bw = crc.transpose(state_bw, [0, 2, 3, 1])
         return (outputs, state_fw, state_bw)

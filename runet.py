@@ -1,6 +1,17 @@
 from __future__ import print_function, division, absolute_import
 from collections import OrderedDict
+import logging
+import numpy as np
 from tf_unet_1 import unet
+import conv_rnn_cell as crc
+import conv_rnn as cr
+from tensorflow.python.ops import variable_scope as vs
+from tf_unet_1.layers import (weight_variable, weight_variable_devonc,
+                              bias_variable, conv2d, deconv2d, max_pool,
+                              crop_and_concat, pixel_wise_softmax_2,
+                              cross_entropy)
+
+import tensorflow as tf
 
 
 class RUnet(unet.Unet):
@@ -20,15 +31,108 @@ class RUnet(unet.Unet):
         self.keep_prob = tf.placeholder(tf.float32)  # dropout keep probability
 
         # set up Unet
-        feature_maps, unet_logits, self.variables, self.offset = create_conv_net(
+        feature_maps, self._unet_logits, self.unet_variables, self.offset = create_conv_net(
             self.x, self.keep_prob, channels, n_class, **kwargs)
 
-        self._unet_cost = self._get_cost(unet_logits, cost, cost_kwargs)
+        self.cost_fn = cost
+        self.cost_kwargs = cost_kwargs
 
-        # To be continued...
+        #  batch dimension of feature_maps becomes time points in LSTM
+        # TODO: this isn't working
+        lstm_input = tf.unstack(feature_maps)
+
+        self._lstm_logits, lstm_variables = create_lstm(
+            lstm_input, n_class, n_lstm_layers, **kwargs)
+
+        # This property is meant to be settable
+        self.use_lstm = True
+
+    @property
+    def _logits(self):
+        return self._lstm_logits if self.use_lstm else self._unet_logits
+
+    @property
+    def variables(self):
+        if self.use_lstm:
+            return self.lstm_variables + self.unet_variables
+        else:
+            return self.unet_variables
+
+    @property
+    def cost(self):
+        return self._get_cost(self._logits, self.cost_fn, self.cost_kwargs)
+
+    @property
+    def gradients_node(self):
+        return tf.gradients(self.cost, self.variables)
+
+    @property
+    def cross_entropy(self):
+        return tf.reduce_mean(cross_entropy(
+            tf.reshape(self.y, [-1, self.n_class]),
+            tf.reshape(pixel_wise_softmax_2(self._logits), [-1, self.n_class])
+            ))
+
+    @property
+    def predicter(self):
+        return pixel_wise_softmax_2(self._logits)
+
+    @property
+    def correct_pred(self):
+        return tf.equal(tf.argmax(self.predicter, 3), tf.argmax(self.y, 3))
+
+    @property
+    def accuracy(self):
+        return tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
+
+
+def create_lstm(xs, n_class, layers, lstm_filter_size=3, **kwargs):
+    input_shape = xs[0].shape
+    # out channels = in channels
+    channels = input_shape[2]
+    filter_shape = [lstm_filter_size, lstm_filter_size, channels]
+    strides = [1, 1, 1, 1]
+    padding = 'SAME'
+    stddev = np.sqrt(2 / (lstm_filter_size**2 * channels))
+
+    def weight_init():
+        return weight_variable([lstm_filter_size, lstm_filter_size,
+                                2*channels, channels], stddev)
+
+    variables = []
+    in_list = xs
+    for k_layer in range(layers):
+        fw_cell = crc.BasicConvLSTMCell(input_shape, filter_shape, strides,
+                                        padding, weight_init=weight_init)
+        bw_cell = crc.BasicConvLSTMCell(input_shape, filter_shape, strides,
+                                        padding, weight_init=weight_init)
+
+        with vs.variable_scope('lstm_layer%d' % k_layer) as scope:
+            (ys, state_fw, state_bw) = cr.static_bidirectional_rnn(
+                fw_cell, bw_cell, in_list, dtype=tf.float32, scope=scope)
+            # keep track of variables
+            with vs.variable_scope('fw') as fw_scope:
+                fw_scope.reuse_variables()
+                variables.append(vs.get_variable(crc._BIAS_VARIABLE_NAME))
+                variables.append(vs.get_variable(crc._WEIGHTS_VARIABLE_NAME))
+            with vs.variable_scope('bw') as bw_scope:
+                bw_scope.reuse_variables()
+                variables.append(vs.get_variable(crc._BIAS_VARIABLE_NAME))
+                variables.append(vs.get_variable(crc._WEIGHTS_VARIABLE_NAME))
+
+        in_list = ys
+
+    # 1x1 convolution to get logits
+    out_tensor = tf.stack(in_list)
+    weight = weight_variable([1, 1, channels, n_class], stddev)
+    bias = bias_variable([n_class])
+    conv = conv2d(in_node, weight, tf.constant(1.0))
+    output_map = tf.nn.relu(conv + bias)
+
+    return output_map, variables
 
 def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
-                    filter_size=3, pool_size=2, summaries=True):
+                    filter_size=3, pool_size=2, summaries=True, **kwargs):
     """
     Creates a new convolutional unet for the given parametrization.
 
@@ -143,14 +247,14 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
 
     if summaries:
         for i, (c1, c2) in enumerate(convs):
-            tf.summary.image('summary_conv_%02d_01' % i, get_image_summary(c1))
-            tf.summary.image('summary_conv_%02d_02' % i, get_image_summary(c2))
+            tf.summary.image('summary_conv_%02d_01' % i, unet.get_image_summary(c1))
+            tf.summary.image('summary_conv_%02d_02' % i, unet.get_image_summary(c2))
 
         for k in pools.keys():
-            tf.summary.image('summary_pool_%02d' % k, get_image_summary(pools[k]))
+            tf.summary.image('summary_pool_%02d' % k, unet.get_image_summary(pools[k]))
 
         for k in deconv.keys():
-            tf.summary.image('summary_deconv_concat_%02d' % k, get_image_summary(deconv[k]))
+            tf.summary.image('summary_deconv_concat_%02d' % k, unet.get_image_summary(deconv[k]))
 
         for k in dw_h_convs.keys():
             tf.summary.histogram("dw_convolution_%02d" % k + '/activations', dw_h_convs[k])

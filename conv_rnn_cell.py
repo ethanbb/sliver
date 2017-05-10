@@ -40,7 +40,8 @@ class BasicConvRNNCell(RNNCell):
     """
 
     def __init__(self, input_shape, filter_shape, strides, padding,
-                 use_cudnn_on_gpu=True, activation=tanh, scope=None):
+                 use_cudnn_on_gpu=True, activation=tanh, weight_init=None,
+                 scope=None):
         self._input_shape = input_shape
         self._filter_channels_in = input_shape[2] + filter_shape[2]
         filter_shape.insert(2, self._filter_channels_in)
@@ -52,6 +53,7 @@ class BasicConvRNNCell(RNNCell):
         self._scope = scope
         dummy_output = self._dummy_forward()
         self._output_shape = dummy_output.get_shape()[1:]
+        self._weight_init = weight_init
 
     def _dummy_forward(self):
         """Do a forward pass on placeholders to determine output size"""
@@ -79,7 +81,8 @@ class BasicConvRNNCell(RNNCell):
         state = transpose(state, [0, 2, 3, 1])
         output = self._activation(
             _conv2d([x, state], self._filter_shape, self._strides,
-                    self._padding, self._use_cudnn, True, scope=self._scope))
+                    self._padding, self._use_cudnn, True,
+                    weight_init=self._weight_init, scope=self._scope))
         output = transpose(output, [0, 3, 1, 2])
         return output, output
 
@@ -93,7 +96,7 @@ class BasicConvLSTMCell(BasicConvRNNCell):
     """
     def __init__(self, input_shape, filter_shape, strides, padding,
                  forget_bias=1.0, use_cudnn_on_gpu=True, activation=tanh,
-                 scope=None):
+                 weight_init=None, scope=None):
         super(BasicConvLSTMCell, self).__init__(
             input_shape, filter_shape, strides, padding, use_cudnn_on_gpu,
             activation, scope)
@@ -111,7 +114,8 @@ class BasicConvLSTMCell(BasicConvRNNCell):
 
         filter_shape = self._filter_shape[0:3] + [4*self._filter_shape[3]]
         concat = _conv2d([x, h], filter_shape, self._strides, self._padding,
-                         self._use_cudnn, True, scope=self._scope)
+                         self._use_cudnn, True, weight_init=self._weight_init,
+                         scope=self._scope)
 
         # i = input_gate, j = new_input, f = forget_gate, o = output_gate
         i, j, f, o = array_ops.split(value=concat, num_or_size_splits=4,
@@ -130,7 +134,7 @@ class BasicConvLSTMCell(BasicConvRNNCell):
 
 
 def _conv2d(args, filter_shape, strides, padding, use_cudnn_on_gpu, bias,
-            bias_start=0.0, scope=None):
+            weight_init=None, bias_start=0.0, scope=None):
     """2D convolution with newly-created or stored filters
 
     Args:
@@ -160,7 +164,8 @@ def _conv2d(args, filter_shape, strides, padding, use_cudnn_on_gpu, bias,
         scope = vs.get_variable_scope()
     with vs.variable_scope(scope) as outer_scope:
         filters = vs.get_variable(
-            _WEIGHTS_VARIABLE_NAME, filter_shape, dtype=dtype)
+            _WEIGHTS_VARIABLE_NAME, filter_shape, dtype=dtype,
+            initializer=weight_init)
         if len(args) == 1:
             res = nn_ops.conv2d(args[0], filters, strides,
                                 padding, use_cudnn_on_gpu)

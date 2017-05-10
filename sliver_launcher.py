@@ -1,5 +1,6 @@
 from __future__ import print_function, division, absolute_import, unicode_literals
 from tf_unet_1 import unet
+import runet
 from tf_unet_1 import util
 from data_gen import CTScanDataProvider
 
@@ -13,11 +14,12 @@ if __name__ == '__main__':
     # need new generator
     generator = CTScanDataProvider()
 
-    net = unet.Unet(channels=generator.channels,
-                    n_class=generator.n_class,
-                    layers=3,
-                    features_root=16,
-                    cost="dice_coefficient")
+    net = runet.RUnet(channels=generator.channels,
+                      n_class=generator.n_class,
+                      layers=3,
+                      features_root=16,
+                      cost="dice_coefficient")
+    net.use_lstm = False
 
     trainer = unet.Trainer(net, batch_size=4, optimizer="momentum",
                            opt_kwargs=dict(momentum=0.2, learning_rate=0.2))

@@ -1,6 +1,7 @@
 from __future__ import print_function, division, absolute_import, unicode_literals
 
 import numpy as np
+import random
 
 npy_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data1/'
 
@@ -18,23 +19,29 @@ class CTScanDataProvider(object):
     :param a_max: (optional) max value used for clipping
     """
     channels = 1
-    # n_class = 4
-    n_class = 3
+    n_class = 4
+    # n_class = 3
 
     def __init__(self, a_min=None, a_max=None):
         self.a_min = a_min if a_min is not None else -np.inf
         self.a_max = a_max if a_min is not None else np.inf
         self.volume_index = -1
         self.volume_depth = -1
-        self.frame_index = 25  # HACK
+        self.non_bg_depth = -1
+        self.non_bg_count = -1
+        self.bg_count = -1
+        self.frame_index = 0
         self.num_samples = 28
+        self.bg_ind = None
+        self.non_bg_ind = None
+
 
     def _load_data_and_label(self):
         data, label = self._next_data()
 
-        print ("volume index: " + str(self.volume_index) + ", frame index: " + str(self.frame_index))
-        max_label = np.amax(label)
-        print ("max label of this frame: " + str(max_label))
+        # print ("volume index: " + str(self.volume_index) + ", frame index: " + str(self.frame_index))
+        # max_label = np.amax(label)
+        # print ("max label of this frame: " + str(max_label))
 
         nx = data.shape[1]
         ny = data.shape[0]
@@ -51,7 +58,7 @@ class CTScanDataProvider(object):
         labels[..., 0] = (label == 0)
         labels[..., 1] = (label == 1)
         labels[..., 2] = (label == 2)
-        # labels[..., 3] = (label == -1)
+        labels[..., 3] = (label == -1)
         return labels
 
     def _process_data(self, data):
@@ -88,16 +95,24 @@ class CTScanDataProvider(object):
 
         return X, Y
 
-    def _cycle_frame(self):
-        self.frame_index += 1
-        if self.frame_index >= self.volume_depth:
-            self.frame_index = 0
-            return True
-        return False  # returns False if we have not finished the volume yet
+    def _cycle_non_bg_frame(self):
+        self.non_bg_count += 1
+
+    def _cycle_bg_frame(self):
+        self.bg_count += 1
 
     def _next_data(self):
-        if (self._cycle_frame()):
+        if self.non_bg_count >= self.non_bg_depth - 1:
+            self.non_bg_count = -1
             self.data, self.label = self._next_volume()
+        skew = random.random()
+        if (skew > 1./3):
+            self._cycle_non_bg_frame()
+            self.frame_index = self.non_bg_ind[self.non_bg_count]
+        else:
+            self._cycle_bg_frame()
+            self.frame_index = self.bg_ind[self.bg_count]
+
         return self.data[:, :, self.frame_index], self.label[:, :, self.frame_index]
 
     def _cycle_volume(self):
@@ -113,6 +128,11 @@ class CTScanDataProvider(object):
         data = np.load(data_path + '.npy')
         label = np.load(label_path + '.npy')
 
+        self.non_bg_ind = np.unique(label.nonzero()[2])
+        self.non_bg_ind = np.random.permutation(self.non_bg_ind)
+        self.bg_ind = np.where(label == 0)[2]
+
+        self.non_bg_depth = self.non_bg_ind.shape[0]
         self.volume_depth = data.shape[2]
 
         return data, label

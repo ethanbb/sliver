@@ -301,7 +301,6 @@ class Trainer(object):
 
     prediction_path = "prediction"
     verification_batch_size = 4
-    # verification_batch_size = 1
 
     def __init__(self, net, batch_size=1, optimizer="momentum", opt_kwargs={}):
         self.net = net
@@ -447,8 +446,8 @@ class Trainer(object):
         pred_shape = prediction.shape
 
         loss = sess.run(self.net.cost, feed_dict={self.net.x: batch_x,
-                                                       self.net.y: util.crop_to_shape(batch_y, pred_shape),
-                                                       self.net.keep_prob: 1.})
+                                                  self.net.y: util.crop_to_shape(batch_y, pred_shape),
+                                                  self.net.keep_prob: 1.})
 
         logging.info("Verification error= {:.1f}%, loss= {:.4f}".format(error_rate(prediction,
                                                                                    util.crop_to_shape(batch_y,

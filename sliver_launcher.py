@@ -10,7 +10,6 @@ if __name__ == '__main__':
     display_step = 2
     restore = False
 
-    # generator = image_gen.RgbDataProvider(nx, ny, cnt=20, rectangles=False)
     # need new generator
     generator = CTScanDataProvider()
 
@@ -20,8 +19,8 @@ if __name__ == '__main__':
                     features_root=16,
                     cost="dice_coefficient")
 
-    trainer = unet.Trainer(net, optimizer="momentum",
-                           opt_kwargs=dict(momentum=0.2, learning_rate=0.01))
+    trainer = unet.Trainer(net, batch_size=4, optimizer="momentum",
+                           opt_kwargs=dict(momentum=0.2, learning_rate=0.2))
     path = trainer.train(generator, "./unet_trained",
                          training_iters=training_iters,
                          epochs=epochs,

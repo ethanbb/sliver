@@ -2,7 +2,7 @@ from __future__ import print_function, division, absolute_import, unicode_litera
 
 import numpy as np
 
-npy_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data/'
+npy_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data1/'
 
 
 class CTScanDataProvider(object):
@@ -18,18 +18,23 @@ class CTScanDataProvider(object):
     :param a_max: (optional) max value used for clipping
     """
     channels = 1
-    n_class = 4
+    # n_class = 4
+    n_class = 3
 
     def __init__(self, a_min=None, a_max=None):
         self.a_min = a_min if a_min is not None else -np.inf
         self.a_max = a_max if a_min is not None else np.inf
         self.volume_index = -1
         self.volume_depth = -1
-        self.frame_index = -1
+        self.frame_index = 25  # HACK
         self.num_samples = 28
 
     def _load_data_and_label(self):
         data, label = self._next_data()
+
+        print ("volume index: " + str(self.volume_index) + ", frame index: " + str(self.frame_index))
+        max_label = np.amax(label)
+        print ("max label of this frame: " + str(max_label))
 
         nx = data.shape[1]
         ny = data.shape[0]
@@ -46,7 +51,7 @@ class CTScanDataProvider(object):
         labels[..., 0] = (label == 0)
         labels[..., 1] = (label == 1)
         labels[..., 2] = (label == 2)
-        labels[..., 3] = (label == -1)
+        # labels[..., 3] = (label == -1)
         return labels
 
     def _process_data(self, data):
@@ -66,7 +71,7 @@ class CTScanDataProvider(object):
         """
         return data, labels
 
-    def __call__(self, n=1):
+    def __call__(self, n=4):
         train_data, labels = self._load_data_and_label()
         nx = train_data.shape[1]
         ny = train_data.shape[2]

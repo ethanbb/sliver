@@ -21,7 +21,7 @@ from tensorflow.python.util import nest
 from tensorflow.contrib.rnn import LSTMStateTuple
 
 _BIAS_VARIABLE_NAME = "biases"
-_FILTERS_VARIABLE_NAME = "filters"
+_WEIGHTS_VARIABLE_NAME = "weights"
 
 
 class BasicConvRNNCell(RNNCell):
@@ -40,8 +40,7 @@ class BasicConvRNNCell(RNNCell):
     """
 
     def __init__(self, input_shape, filter_shape, strides, padding,
-                 use_cudnn_on_gpu=True, activation=tanh,
-                 scope='basic_conv_rnn_cell'):
+                 use_cudnn_on_gpu=True, activation=tanh, scope=None):
         self._input_shape = input_shape
         self._filter_channels_in = input_shape[2] + filter_shape[2]
         filter_shape.insert(2, self._filter_channels_in)
@@ -71,18 +70,16 @@ class BasicConvRNNCell(RNNCell):
     def output_size(self):
         return self._output_shape
 
-    def __call__(self, x, state, scope=None):
+    def __call__(self, x, state):
         """Inputs and outputs are of shape [batch, channels, height, width]
         (Note the unusual shape which allows static_bidirectional_rnn to work)
         This is dealt with in the wrappers in core_conv_rnn
         """
-        scope = scope or self._scope
-        with vs.variable_scope(scope):
-            x = transpose(x, [0, 2, 3, 1])
-            state = transpose(state, [0, 2, 3, 1])
-            output = self._activation(
-                _conv2d([x, state], self._filter_shape, self._strides,
-                        self._padding, self._use_cudnn, True, scope=scope))
+        x = transpose(x, [0, 2, 3, 1])
+        state = transpose(state, [0, 2, 3, 1])
+        output = self._activation(
+            _conv2d([x, state], self._filter_shape, self._strides,
+                    self._padding, self._use_cudnn, True, scope=self._scope))
         output = transpose(output, [0, 3, 1, 2])
         return output, output
 
@@ -96,7 +93,7 @@ class BasicConvLSTMCell(BasicConvRNNCell):
     """
     def __init__(self, input_shape, filter_shape, strides, padding,
                  forget_bias=1.0, use_cudnn_on_gpu=True, activation=tanh,
-                 scope='basic_conv_lstm_cell'):
+                 scope=None):
         super(BasicConvLSTMCell, self).__init__(
             input_shape, filter_shape, strides, padding, use_cudnn_on_gpu,
             activation, scope)
@@ -106,32 +103,30 @@ class BasicConvLSTMCell(BasicConvRNNCell):
     def state_size(self):
         return LSTMStateTuple(self._output_shape, self._output_shape)
 
-    def __call__(self, x, state, scope=None):
-        scope = scope or self._scope
-        with vs.variable_scope(scope):
-            c, h = state
-            # transpose to [batch, height, width, channel]
-            x = transpose(x, [0, 2, 3, 1])
-            c, h = transpose(state, [0, 2, 3, 1])
+    def __call__(self, x, state):
+        c, h = state
+        # transpose to [batch, height, width, channel]
+        x = transpose(x, [0, 2, 3, 1])
+        c, h = transpose(state, [0, 2, 3, 1])
 
-            filter_shape = self._filter_shape[0:3] + [4*self._filter_shape[3]]
-            concat = _conv2d([x, h], filter_shape, self._strides,
-                             self._padding, self._use_cudnn, True, scope=scope)
+        filter_shape = self._filter_shape[0:3] + [4*self._filter_shape[3]]
+        concat = _conv2d([x, h], filter_shape, self._strides, self._padding,
+                         self._use_cudnn, True, scope=self._scope)
 
-            # i = input_gate, j = new_input, f = forget_gate, o = output_gate
-            i, j, f, o = array_ops.split(value=concat, num_or_size_splits=4,
-                                         axis=3)
+        # i = input_gate, j = new_input, f = forget_gate, o = output_gate
+        i, j, f, o = array_ops.split(value=concat, num_or_size_splits=4,
+                                     axis=3)
 
-            new_c = (c * sigmoid(f + self._forget_bias) + sigmoid(i) *
-                     self._activation(j))
-            new_h = self._activation(new_c) * sigmoid(o)
+        new_c = (c * sigmoid(f + self._forget_bias) + sigmoid(i) *
+                 self._activation(j))
+        new_h = self._activation(new_c) * sigmoid(o)
 
-            # transpose to [batch, channel, height, width]
-            new_c = transpose(new_c, [0, 3, 1, 2])
-            new_h = transpose(new_h, [0, 3, 1, 2])
+        # transpose to [batch, channel, height, width]
+        new_c = transpose(new_c, [0, 3, 1, 2])
+        new_h = transpose(new_h, [0, 3, 1, 2])
 
-            new_state = LSTMStateTuple(new_c, new_h)
-            return new_h, new_state
+        new_state = LSTMStateTuple(new_c, new_h)
+        return new_h, new_state
 
 
 def _conv2d(args, filter_shape, strides, padding, use_cudnn_on_gpu, bias,
@@ -165,7 +160,7 @@ def _conv2d(args, filter_shape, strides, padding, use_cudnn_on_gpu, bias,
         scope = vs.get_variable_scope()
     with vs.variable_scope(scope) as outer_scope:
         filters = vs.get_variable(
-            _FILTERS_VARIABLE_NAME, filter_shape, dtype=dtype)
+            _WEIGHTS_VARIABLE_NAME, filter_shape, dtype=dtype)
         if len(args) == 1:
             res = nn_ops.conv2d(args[0], filters, strides,
                                 padding, use_cudnn_on_gpu)

@@ -19,15 +19,15 @@ class RUnet(unet.Unet):
     n_lstm_layers is the number of vertical bidirectional LSTM layers
     All other inputs are the same as the inputs to Unet.__init__.
     """
-    def __init__(self, n_lstm_layers=1, channels=3, n_class=2,
+    def __init__(self, batch_size, n_lstm_layers=1, channels=3, n_class=2,
                  cost="cross_entropy", cost_kwargs={}, **kwargs):
         tf.reset_default_graph()
 
         self.n_class = n_class
         self.summaries = kwargs.get("summaries", True)
 
-        self.x = tf.placeholder("float", shape=[None, None, None, channels])
-        self.y = tf.placeholder("float", shape=[None, None, None, n_class])
+        self.x = tf.placeholder("float", shape=[batch_size, None, None, channels])
+        self.y = tf.placeholder("float", shape=[batch_size, None, None, n_class])
         self.keep_prob = tf.placeholder(tf.float32)  # dropout keep probability
 
         # set up Unet

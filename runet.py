@@ -44,6 +44,7 @@ class RUnet(unet.Unet):
         #  batch dimension of feature_maps becomes time points in LSTM
         # TODO: this isn't working
         lstm_input = tf.unstack(feature_maps)
+        lstm_input = [tf.expand_dims(x, 0) for x in lstm_input]
         self._lstm_logits, lstm_variables = create_lstm(
             lstm_input, n_class, n_lstm_layers, **kwargs)
 
@@ -90,10 +91,10 @@ class RUnet(unet.Unet):
 
 
 def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):
-    input_shape = xs[0].shape.as_list()
+    input_shape = xs[0].shape.as_list()[1:]
     # out channels = in channels
     channels = input_shape[2]
-    filter_shape = [lstm_filter_size, lstm_filter_size, channels]
+    filter_shape = [lstm_filter_size, lstm_filter_size, 2*channels, channels]
     strides = [1, 1, 1, 1]
     padding = 'SAME'
     stddev = np.sqrt(2 / (lstm_filter_size**2 * channels))
@@ -126,10 +127,10 @@ def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):
         in_list = ys
 
     # 1x1 convolution to get logits
-    out_tensor = tf.stack(in_list)
-    weight = weight_variable([1, 1, channels, n_class], stddev)
+    out_tensor = tf.concat(in_list, 0)
+    weight = weight_variable([1, 1, 2*channels, n_class], stddev)
     bias = bias_variable([n_class])
-    conv = conv2d(in_node, weight, tf.constant(1.0))
+    conv = conv2d(out_tensor, weight, tf.constant(1.0))
     output_map = tf.nn.relu(conv + bias)
 
     return output_map, variables

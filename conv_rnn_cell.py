@@ -30,7 +30,7 @@ class BasicConvRNNCell(RNNCell):
 
     Args:
         input_shape: [in_height, in_width, in_channels]
-        filter_shape: [filter_height, filter_width, out_channels]
+        filter_shape: [filter_height, filter_width, in_channels, out_channels]
             (input channels of filter is automatically calculated)
         strides: (see 'strides' input to tf.nn.conv2d)
         padding: padding algorithm, either 'SAME' or 'VALID'
@@ -43,8 +43,6 @@ class BasicConvRNNCell(RNNCell):
                  use_cudnn_on_gpu=True, activation=tanh, weight_init=None,
                  scope=None):
         self._input_shape = input_shape
-        self._filter_channels_in = input_shape[2] + filter_shape[2]
-        filter_shape.insert(2, self._filter_channels_in)
         self._filter_shape = filter_shape
         self._strides = strides
         self._padding = padding
@@ -59,7 +57,7 @@ class BasicConvRNNCell(RNNCell):
         """Do a forward pass on placeholders to determine output size"""
         combined_in = array_ops.placeholder(
             dtypes.float32,
-            shape=[None] + self._input_shape[0:2] + [self._filter_channels_in])
+            shape=[None] + self._input_shape[0:2] + [self._filter_shape[2]])
         filt = array_ops.placeholder(dtypes.float32, shape=self._filter_shape)
         output = nn_ops.conv2d(combined_in, filt, self._strides, self._padding)
         return transpose(output, [0, 3, 1, 2])

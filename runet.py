@@ -44,7 +44,6 @@ class RUnet(unet.Unet):
         #  batch dimension of feature_maps becomes time points in LSTM
         # TODO: this isn't working
         lstm_input = tf.unstack(feature_maps)
-        import pdb; pdb.set_trace()
         self._lstm_logits, lstm_variables = create_lstm(
             lstm_input, n_class, n_lstm_layers, **kwargs)
 
@@ -91,7 +90,7 @@ class RUnet(unet.Unet):
 
 
 def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):
-    input_shape = xs[0].shape
+    input_shape = xs[0].shape.as_list()
     # out channels = in channels
     channels = input_shape[2]
     filter_shape = [lstm_filter_size, lstm_filter_size, channels]
@@ -105,7 +104,7 @@ def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):
 
     variables = []
     in_list = xs
-    for k_layer in range(layers):
+    for k_layer in range(lstm_layers):
         fw_cell = crc.BasicConvLSTMCell(input_shape, filter_shape, strides,
                                         padding, weight_init=weight_init)
         bw_cell = crc.BasicConvLSTMCell(input_shape, filter_shape, strides,
@@ -231,7 +230,6 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         conv1 = conv2d(h_deconv_concat, w1, keep_prob)
         h_conv = tf.nn.relu(conv1 + b1)
         conv2 = conv2d(h_conv, w2, keep_prob)
-        import pdb; pdb.set_trace()
         in_node = tf.nn.relu(conv2 + b2)
         up_h_convs[layer] = in_node
 

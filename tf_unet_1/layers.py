@@ -41,7 +41,6 @@ def deconv2d(x, W,stride):
     # x_shape = tf.shape(x)
     x_shape = x.get_shape().as_list()
     output_shape = tf.stack([x_shape[0], x_shape[1]*2, x_shape[2]*2, x_shape[3]//2])
-    import pdb; pdb.set_trace()
     return tf.nn.conv2d_transpose(x, W, output_shape, strides=[1, stride, stride, 1], padding='VALID')
     # conv2d_t = tf.nn.conv2d_transpose(x, W, output_shape, strides=[1, stride, stride, 1], padding='VALID')
     # conv2d_t = tf.reshape(conv2d_t, output_shape)

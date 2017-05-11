@@ -45,7 +45,7 @@ class RUnet(unet.Unet):
         #  batch dimension of feature_maps becomes time points in LSTM
         lstm_input = tf.unstack(feature_maps)
         lstm_input = [tf.expand_dims(x, 0) for x in lstm_input]
-        self._lstm_logits, lstm_variables = create_lstm(
+        self._lstm_logits, self.lstm_variables = create_lstm(
             lstm_input, n_class, n_lstm_layers, **kwargs)
 
         # This property is meant to be settable

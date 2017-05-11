@@ -95,3 +95,6 @@ images/
 
 # Setup
 .ftpconfig
+
+# log dir
+unet_trained/

@@ -22,7 +22,7 @@ if __name__ == '__main__':
                       layers=3,
                       features_root=16,
                       cost="dice_coefficient")
-    net.use_lstm = False
+    net.use_lstm = True
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
                            opt_kwargs=dict(momentum=0.2, learning_rate=0.2))

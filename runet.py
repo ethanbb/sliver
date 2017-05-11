@@ -26,11 +26,12 @@ class RUnet(unet.Unet):
         self.n_class = n_class
         self.summaries = kwargs.get("summaries", True)
 
+        # TODO: literally what the fuck
         self.x = tf.placeholder("float", shape=[batch_size, 512, 512, channels])
-        self.y = tf.placeholder("float", shape=[batch_size, 512, 512, n_class])
+        # self.y = tf.placeholder("float", shape=[batch_size, 512, 512, n_class])
 
         # self.x = tf.placeholder("float", shape=[batch_size, None, None, channels])
-        # self.y = tf.placeholder("float", shape=[batch_size, None, None, n_class])
+        self.y = tf.placeholder("float", shape=[batch_size, None, None, n_class])
 
         self.keep_prob = tf.placeholder(tf.float32)  # dropout keep probability
 
@@ -42,7 +43,6 @@ class RUnet(unet.Unet):
         self.cost_kwargs = cost_kwargs
 
         #  batch dimension of feature_maps becomes time points in LSTM
-        # TODO: this isn't working
         lstm_input = tf.unstack(feature_maps)
         lstm_input = [tf.expand_dims(x, 0) for x in lstm_input]
         self._lstm_logits, lstm_variables = create_lstm(

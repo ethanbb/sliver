@@ -26,8 +26,12 @@ class RUnet(unet.Unet):
         self.n_class = n_class
         self.summaries = kwargs.get("summaries", True)
 
-        self.x = tf.placeholder("float", shape=[batch_size, None, None, channels])
-        self.y = tf.placeholder("float", shape=[batch_size, None, None, n_class])
+        self.x = tf.placeholder("float", shape=[batch_size, 512, 512, channels])
+        self.y = tf.placeholder("float", shape=[batch_size, 512, 512, n_class])
+
+        # self.x = tf.placeholder("float", shape=[batch_size, None, None, channels])
+        # self.y = tf.placeholder("float", shape=[batch_size, None, None, n_class])
+
         self.keep_prob = tf.placeholder(tf.float32)  # dropout keep probability
 
         # set up Unet
@@ -40,7 +44,7 @@ class RUnet(unet.Unet):
         #  batch dimension of feature_maps becomes time points in LSTM
         # TODO: this isn't working
         lstm_input = tf.unstack(feature_maps)
-
+        import pdb; pdb.set_trace()
         self._lstm_logits, lstm_variables = create_lstm(
             lstm_input, n_class, n_lstm_layers, **kwargs)
 
@@ -86,7 +90,7 @@ class RUnet(unet.Unet):
         return tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
 
 
-def create_lstm(xs, n_class, layers, lstm_filter_size=3, **kwargs):
+def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):
     input_shape = xs[0].shape
     # out channels = in channels
     channels = input_shape[2]
@@ -156,7 +160,9 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
     # Placeholder for the input image
     nx = tf.shape(x)[1]
     ny = tf.shape(x)[2]
-    x_image = tf.reshape(x, tf.stack([-1, nx, ny, channels]))
+
+    # x_image = tf.reshape(x, tf.stack([-1, nx, ny, channels]))
+    x_image = x
     in_node = x_image
     batch_size = tf.shape(x_image)[0]
 
@@ -225,6 +231,7 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         conv1 = conv2d(h_deconv_concat, w1, keep_prob)
         h_conv = tf.nn.relu(conv1 + b1)
         conv2 = conv2d(h_conv, w2, keep_prob)
+        import pdb; pdb.set_trace()
         in_node = tf.nn.relu(conv2 + b2)
         up_h_convs[layer] = in_node
 

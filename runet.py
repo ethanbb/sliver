@@ -26,12 +26,8 @@ class RUnet(unet.Unet):
         self.n_class = n_class
         self.summaries = kwargs.get("summaries", True)
 
-        # TODO: literally what the fuck
         self.x = tf.placeholder("float", shape=[batch_size, 512, 512, channels])
-        # self.y = tf.placeholder("float", shape=[batch_size, 512, 512, n_class])
-
-        # self.x = tf.placeholder("float", shape=[batch_size, None, None, channels])
-        self.y = tf.placeholder("float", shape=[batch_size, None, None, n_class])
+        self.y = tf.placeholder("float", shape=[batch_size, 512, 512, n_class])
 
         self.keep_prob = tf.placeholder(tf.float32)  # dropout keep probability
 
@@ -135,6 +131,7 @@ def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):
 
     return output_map, variables
 
+
 def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
                     filter_size=3, pool_size=2, summaries=True, **kwargs):
     """
@@ -201,7 +198,6 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         biases.append((b1, b2))
         convs.append((conv1, conv2))
 
-        size -= 4
         if layer < layers-1:
             pools[layer] = max_pool(dw_h_convs[layer], pool_size)
             in_node = pools[layer]
@@ -239,7 +235,6 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         convs.append((conv1, conv2))
 
         size *= 2
-        size -= 4
 
     # output before mapping to n_class for connection to LSTM
     output_raw = in_node

@@ -84,8 +84,11 @@ def crop_to_shape(data, shape):
     :param shape: the target shape
     """
     offset0 = (data.shape[1] - shape[1])//2
+    offset0end = -offset0 if offset0 > 0 else None
     offset1 = (data.shape[2] - shape[2])//2
-    return data[:, offset0:(-offset0), offset1:(-offset1)]
+    offset1end = -offset1 if offset1 > 0 else None
+
+    return data[:, offset0:offset0end, offset1:offset1end]
 
 def combine_img_prediction(data, gt, pred):
     """

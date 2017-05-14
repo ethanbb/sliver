@@ -444,6 +444,7 @@ class Trainer(object):
                                                              self.net.keep_prob: 1.})
         pred_shape = prediction.shape
 
+
         loss = sess.run(self.net.cost, feed_dict={self.net.x: batch_x,
                                                   self.net.y: util.crop_to_shape(batch_y, pred_shape),
                                                   self.net.keep_prob: 1.})

@@ -19,10 +19,10 @@ if __name__ == '__main__':
                     layers=3,
                     features_root=16,
                     cost="dice_coefficient")
-    import pdb; pdb.set_trace()
+
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
                            opt_kwargs=dict(momentum=0.2, learning_rate=0.2))
-    import pdb; pdb.set_trace()
+
     path = trainer.train(generator, "./unet_trained",
                          training_iters=training_iters,
                          epochs=epochs,

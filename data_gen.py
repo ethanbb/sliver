@@ -105,8 +105,9 @@ class CTScanDataProvider(object):
         if self.non_bg_count >= self.non_bg_depth - 1:
             self.non_bg_count = -1
             self.data, self.label = self._next_volume()
-        skew = random.random()
-        if (skew > 1./3):
+        # skew = random.random()
+        skew = True
+        if (skew):
             self._cycle_non_bg_frame()
             self.frame_index = self.non_bg_ind[self.non_bg_count]
         else:

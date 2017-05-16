@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
                            opt_kwargs=dict(momentum=0.2, learning_rate=0.2))
-    path = trainer.train(generator, "./unet_trained",
+    path = trainer.train(generator, "./runet_trained",
                          training_iters=training_iters,
                          epochs=epochs,
                          dropout=dropout,

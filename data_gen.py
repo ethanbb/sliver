@@ -134,5 +134,4 @@ class CTScanDataProvider(object):
 
         self.non_bg_depth = self.non_bg_ind.shape[0]
         self.volume_depth = data.shape[2]
-
         return data, label

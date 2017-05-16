@@ -229,9 +229,9 @@ class Unet(object):
         elif cost_name == "dice_coefficient":
             eps = 1e-5
             prediction = pixel_wise_softmax_2(logits)
-            intersection = tf.reduce_sum(prediction * self.y)
-            union = eps + tf.reduce_sum(prediction) + tf.reduce_sum(self.y)
-            loss = -(2 * intersection / (union))
+            intersection = tf.reduce_sum(prediction * self.y, axis=[0, 1, 2])
+            union = eps + tf.reduce_sum(prediction, axis=[0, 1, 2]) + tf.reduce_sum(self.y, axis=[0, 1, 2])
+            loss = tf.reduce_sum(-(2 * intersection / (union)))
 
         else:
             raise ValueError("Unknown cost function: "%cost_name)

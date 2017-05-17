@@ -4,8 +4,9 @@ import pdb
 
 # library: http://nipy.org/nibabel/gettingstarted.html
 
-data_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/'
-num_examples = 28
+data_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 2/'
+num_examples_min = 28
+num_examples_max = 130
 
 
 def nifti_to_nparray(filename):
@@ -15,19 +16,19 @@ def nifti_to_nparray(filename):
 
 
 def convert_and_save_batch(folder, data_type):
-    for i in range(0, num_examples):
+    for i in range(num_examples_min, num_examples_max+1):
         print 'converting ' + data_type + ' ' + str(i)
         file_name = folder + data_type + '-' + str(i)
         data = nifti_to_nparray(file_name + '.nii')
 
         # Concatenate an end-token at the end of the volume/segmentation
-        x = data.shape[1]
-        y = data.shape[0]
-        end_token = np.ones((y, x, 1)) * -1
-        data = np.concatenate((data, end_token), 2)
+        # x = data.shape[1]
+        # y = data.shape[0]
+        # end_token = np.ones((y, x, 1)) * -1
+        # data = np.concatenate((data, end_token), 2)
 
         # Save the np array
-        npy_name = folder + 'npy_data/' + data_type + '-' + str(i)
+        npy_name = folder + 'npy_data_notoken/' + data_type + '-' + str(i)
         np.save(npy_name, data)
         print npy_name + ' saved'
 

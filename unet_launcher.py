@@ -5,12 +5,11 @@ from data_gen import CTScanDataProvider
 
 if __name__ == '__main__':
     training_iters = 20
-    epochs = 10
+    epochs = 20
     dropout = 0.75  # Dropout, probability to keep units
     display_step = 2
     restore = False
 
-    # need new generator
     generator = CTScanDataProvider()
     batch_size = 4
 

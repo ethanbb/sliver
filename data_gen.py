@@ -234,15 +234,15 @@ class CTScanTrainDataProvider(object):
         if self.non_bg_count >= self.non_bg_depth - 1:
             self.non_bg_count = -1
             self.data, self.label = self._next_volume()
-        # skew = random.random()
-        skew = True
-        if (skew):
+        skew = random.random()
+        # skew = True
+        if (skew > 0.5):
             self._cycle_non_bg_frame()
             self.frame_index = self.non_bg_ind[self.non_bg_count]
         else:
             self._cycle_bg_frame()
             self.frame_index = self.bg_ind[self.bg_count]
-
+        print(self.volume_index, self.frame_index)
         return self.data[:, :, self.frame_index], self.label[:, :, self.frame_index]
 
     def _cycle_volume(self):
@@ -258,6 +258,7 @@ class CTScanTrainDataProvider(object):
         data = np.load(data_path + '.npy')
         label = np.load(label_path + '.npy')
 
+        # self.non_bg_ind = np.unique(np.where(label == 2)[2])
         self.non_bg_ind = np.unique(label.nonzero()[2])
         self.non_bg_ind = np.random.permutation(self.non_bg_ind)
         self.bg_ind = np.where(label == 0)[2]

@@ -427,6 +427,12 @@ class Trainer(object):
 
                     if step % display_step == 0:
                         self.output_minibatch_stats(sess, summary_writer, step, batch_x, util.crop_to_shape(batch_y, pred_shape))
+                        prediction = sess.run(self.net.predicter, feed_dict={self.net.x: batch_x,
+                                                                             self.net.y: batch_y,
+                                                                             self.net.keep_prob: 1.})
+                        import pdb; pdb.set_trace()
+                        # np.sum(np.sum(batch_y[..., 2], axis=0))
+                        # np.sum(np.sum(prediction[..., 2], axis=0))
 
                     total_loss += loss
 

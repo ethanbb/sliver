@@ -3,6 +3,8 @@ from tf_unet_1 import unet
 from tf_unet_1 import util
 from data_gen import *
 
+import tensorflow as tf
+
 if __name__ == '__main__':
     training_iters = 20
     epochs = 10
@@ -21,17 +23,12 @@ if __name__ == '__main__':
                     features_root=16,
                     cost="dice_coefficient")
 
-    trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
-                           opt_kwargs=dict(momentum=0.2, learning_rate=0.2))
+    # new_graph = tf.Graph()
+    # with tf.Session(graph=new_graph) as sess:
+    #     saver = tf.train.import_meta_graph('./unet_trained/model.cpkt.meta')
+    #     saver.restore(sess, './unet_trained/model.cpkt')
 
-    path = trainer.train(generator, "./unet_trained",
-                         training_iters=training_iters,
-                         epochs=epochs,
-                         dropout=dropout,
-                         display_step=display_step,
-                         restore=restore)
-
-    x_test, y_test = test_generator(4)
-    prediction = net.predict(path, x_test)
+    x_test, y_test = test_generator(20)
+    prediction = net.predict('./unet_trained/model.cpkt', x_test)
 
     print("Testing error rate: {:.2f}%".format(unet.error_rate(prediction, util.crop_to_shape(y_test, prediction.shape))))

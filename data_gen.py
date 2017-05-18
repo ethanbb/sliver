@@ -17,7 +17,6 @@ class CTScanTestDataProvider(object):
     """
     channels = 1
     n_class = 4
-    # n_class = 3
 
     def __init__(self, npy_folder, a_min=None, a_max=None):
         self.a_min = a_min if a_min is not None else -np.inf
@@ -135,6 +134,7 @@ class CTScanTestDataProvider(object):
         self.volume_depth = data.shape[2]
         return data, label
 
+
 class CTScanTrainDataProvider(object):
     """
     Abstract base class for DataProvider implementation. Subclasses have to
@@ -149,7 +149,6 @@ class CTScanTrainDataProvider(object):
     """
     channels = 1
     n_class = 4
-    # n_class = 3
 
     def __init__(self, npy_folder, a_min=None, a_max=None):
         self.a_min = a_min if a_min is not None else -np.inf

@@ -2,17 +2,19 @@ from __future__ import print_function, division, absolute_import, unicode_litera
 from tf_unet_1 import unet
 import runet
 from tf_unet_1 import util
-from data_gen import CTScanDataProvider
+from data_gen import CTScanTrainDataProvider
 
 if __name__ == '__main__':
-    training_iters = 20
-    epochs = 20
+    training_iters = 10
+    epochs = 10
     dropout = 0.75  # Dropout, probability to keep units
     display_step = 2
     restore = False
 
-    # need new generator
-    generator = CTScanDataProvider()
+    npy_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data_notoken/'
+
+
+    generator = CTScanTrainDataProvider(npy_folder)
     batch_size = 4
 
     net = runet.RUnet(batch_size=batch_size,

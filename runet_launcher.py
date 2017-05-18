@@ -4,6 +4,9 @@ import runet
 from tf_unet_1 import util
 from data_gen import CTScanTrainDataProvider
 
+# 2017-05-17 20:29:29,199 Model restored from file: ./runet_trained/model.cpkt
+# Testing error rate: 4.99%
+
 if __name__ == '__main__':
     training_iters = 10
     epochs = 10

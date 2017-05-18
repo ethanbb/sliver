@@ -18,9 +18,8 @@ Created on Aug 19, 2016
 author: jakeret
 '''
 from __future__ import print_function, division, absolute_import, unicode_literals
-
 import tensorflow as tf
-# import numpy as np
+import numpy as np
 
 def weight_variable(shape, stddev=0.1):
     initial = tf.truncated_normal(shape, stddev=stddev)
@@ -38,8 +37,8 @@ def conv2d(x, W,keep_prob_):
     return tf.nn.dropout(conv_2d, keep_prob_)
 
 def deconv2d(x, W, stride):
-    x_shape = tf.shape(x)                           # need this one for just unet
-    # x_shape = x.get_shape().as_list()             # need this one for unet
+    # x_shape = tf.shape(x)                       # need this one for unet
+    x_shape = x.get_shape().as_list()             # need this one for runet
     output_shape = tf.stack([x_shape[0], x_shape[1]*2, x_shape[2]*2, x_shape[3]//2])
     return tf.nn.conv2d_transpose(x, W, output_shape, strides=[1, stride, stride, 1], padding='VALID')
     # conv2d_t = tf.nn.conv2d_transpose(x, W, output_shape, strides=[1, stride, stride, 1], padding='VALID')
@@ -65,8 +64,8 @@ def pixel_wise_softmax(output_map):
     return tf.div(exponential_map,evidence, name="pixel_wise_softmax")
 
 def pixel_wise_softmax_2(output_map):
-    exponential_map = tf.exp(output_map)
-    # exponential_map = tf.exp(tf.clip_by_value(output_map, -np.inf, 50))
+    # exponential_map = tf.exp(output_map)
+    exponential_map = tf.exp(tf.clip_by_value(output_map, -np.inf, 50))
     sum_exp = tf.reduce_sum(exponential_map, 3, keep_dims=True)
     tensor_sum_exp = tf.tile(sum_exp, tf.stack([1, 1, 1, tf.shape(output_map)[3]]))
     return tf.div(exponential_map,tensor_sum_exp)

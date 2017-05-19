@@ -16,26 +16,24 @@ class CTScanTestDataProvider(object):
     :param a_max: (optional) max value used for clipping
     """
     channels = 1
-    n_class = 4
+    n_class = 3
 
     def __init__(self, npy_folder, a_min=None, a_max=None):
         self.a_min = a_min if a_min is not None else -np.inf
         self.a_max = a_max if a_min is not None else np.inf
         self.volume_index = 27
         self.volume_depth = -1
-        self.non_bg_depth = -1
-        self.non_bg_count = -1
-        self.bg_count = -1
-        self.frame_index = 0
+        self.frame_index = -2
         self.num_samples = 130
-        self.bg_ind = None
-        self.non_bg_ind = None
         self.npy_folder = npy_folder
+        self.data = None
+        self.label = None
 
 
     def _load_data_and_label(self):
         data, label = self._next_data()
-
+        if (not np.any(data)):
+            return False, False
         # print ("volume index: " + str(self.volume_index) + ", frame index: " + str(self.frame_index))
         # max_label = np.amax(label)
         # print ("max label of this frame: " + str(max_label))
@@ -55,7 +53,7 @@ class CTScanTestDataProvider(object):
         labels[..., 0] = (label == 0)
         labels[..., 1] = (label == 1)
         labels[..., 2] = (label == 2)
-        labels[..., 3] = (label == -1)
+        # labels[..., 3] = (label == -1)
         return labels
 
     def _process_data(self, data):
@@ -87,52 +85,42 @@ class CTScanTestDataProvider(object):
         Y[0] = labels
         for i in range(1, n):
             train_data, labels = self._load_data_and_label()
+            if (not np.any(train_data)):
+                return False, False
             X[i] = train_data
             Y[i] = labels
-
         return X, Y
 
-    def _cycle_non_bg_frame(self):
-        self.non_bg_count += 1
-
-    def _cycle_bg_frame(self):
-        self.bg_count += 1
+    def _cycle_frame(self):
+        self.frame_index += 1
+        if (self.frame_index >= self.volume_depth or self.frame_index == -1):
+            self.frame_index = 0
+            return True
+        return False  # returns False if volume is unfinished
 
     def _next_data(self):
-        if self.non_bg_count >= self.non_bg_depth - 1:
-            self.non_bg_count = -1
-            self.data, self.label = self._next_volume()
-        skew = random.random()
-        # skew = True
-        if (skew > 0.5):
-            self._cycle_non_bg_frame()
-            self.frame_index = self.non_bg_ind[self.non_bg_count]
-        else:
-            self._cycle_bg_frame()
-            self.frame_index = self.bg_ind[self.bg_count]
-
+        if (self._cycle_frame()):
+            self._next_volume()
+            if (not np.any(self.data)):
+                return False, False  # returns False if entire batch is finished
         return self.data[:, :, self.frame_index], self.label[:, :, self.frame_index]
 
     def _cycle_volume(self):
         self.volume_index += 1
         if self.volume_index >= self.num_samples:
-            self.volume_index = 28
+            return True  # returns True if entire batch is finished
 
     def _next_volume(self):
-        self._cycle_volume()
+        if (self._cycle_volume()):
+            self.data, self.label = False, False
         data_path = self.npy_folder + 'volume-' + str(self.volume_index)
         label_path = self.npy_folder + 'segmentation-' + str(self.volume_index)
 
         data = np.load(data_path + '.npy')
         label = np.load(label_path + '.npy')
 
-        self.non_bg_ind = np.unique(label.nonzero()[2])
-        self.non_bg_ind = np.random.permutation(self.non_bg_ind)
-        self.bg_ind = np.where(label == 0)[2]
-
-        self.non_bg_depth = self.non_bg_ind.shape[0]
         self.volume_depth = data.shape[2]
-        return data, label
+        self.data, self.label = data, label
 
 
 class CTScanTrainDataProvider(object):

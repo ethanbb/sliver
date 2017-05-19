@@ -18,7 +18,7 @@ if __name__ == '__main__':
                     features_root=16,
                     cost="dice_coefficient")
 
-    test_batch_num = 500
+    test_batch_num = 50
     err = 0.
     for i in range(test_batch_num):
         x_test, y_test = test_generator(50)
@@ -28,4 +28,6 @@ if __name__ == '__main__':
     final_err = err / test_batch_num
     print("Testing error rate: {:.2f}%".format(final_err))
 
-# Testing error rate: 8.80%
+# Testing error rate: 6.88% with average class pixel accuracy
+# Testing error rate: 6.84% with modified dice coefficient unet_trained_newloss
+# Testing error rate: 8.80% with unet_trained_1

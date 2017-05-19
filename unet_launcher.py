@@ -3,7 +3,6 @@ from tf_unet_1 import unet
 from tf_unet_1 import util
 from data_gen import CTScanTrainDataProvider
 
-# Last time, failed at 2017-05-17 20:40:04,441 Epoch 6, Average loss: -1.1211, learning rate: 0.0735
 # 2017-05-17 20:57:09,612 Epoch 19, Average loss: -1.1076, learning rate: 0.0377
 # 2017-05-17 20:57:09,968 Verification error= 3.9%, loss= -1.0624
 # 2017-05-17 20:57:11,053 Optimization Finished!
@@ -15,7 +14,7 @@ from data_gen import CTScanTrainDataProvider
 
 if __name__ == '__main__':
     training_iters = 20
-    epochs = 20
+    epochs = 50
     dropout = 0.75  # Dropout, probability to keep units
     display_step = 2
     restore = False

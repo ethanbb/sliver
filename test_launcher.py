@@ -6,11 +6,6 @@ from data_gen import *
 import tensorflow as tf
 
 if __name__ == '__main__':
-    training_iters = 20
-    epochs = 10
-    dropout = 0.75  # Dropout, probability to keep units
-    display_step = 2
-    restore = False
 
     generator = CTScanTrainDataProvider('/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data_notoken/')
     test_generator = CTScanTestDataProvider('/ihome/azhu/cs189/data/liverScans/Training Batch 2/npy_data_notoken/')
@@ -23,12 +18,14 @@ if __name__ == '__main__':
                     features_root=16,
                     cost="dice_coefficient")
 
-    # new_graph = tf.Graph()
-    # with tf.Session(graph=new_graph) as sess:
-    #     saver = tf.train.import_meta_graph('./unet_trained/model.cpkt.meta')
-    #     saver.restore(sess, './unet_trained/model.cpkt')
+    test_batch_num = 500
+    err = 0.
+    for i in range(test_batch_num):
+        x_test, y_test = test_generator(50)
+        prediction = net.predict('./unet_trained/model.cpkt', x_test)
+        err += unet.error_rate(prediction, util.crop_to_shape(y_test, prediction.shape))
+    print("Total summed err: {:.2f}".format(err))
+    final_err = err / test_batch_num
+    print("Testing error rate: {:.2f}%".format(final_err))
 
-    x_test, y_test = test_generator(20)
-    prediction = net.predict('./unet_trained/model.cpkt', x_test)
-
-    print("Testing error rate: {:.2f}%".format(unet.error_rate(prediction, util.crop_to_shape(y_test, prediction.shape))))
+# Testing error rate: 8.80%

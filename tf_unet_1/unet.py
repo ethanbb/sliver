@@ -230,8 +230,14 @@ class Unet(object):
             eps = 1e-5
             prediction = pixel_wise_softmax_2(logits)
             intersection = tf.reduce_sum(prediction * self.y, axis=[0, 1, 2])
-            union = eps + tf.reduce_sum(prediction, axis=[0, 1, 2]) + tf.reduce_sum(self.y, axis=[0, 1, 2])
+            union = eps + tf.reduce_sum(prediction, axis=[0, 1, 2]) + tf.reduce_sum(self.y, axis=[0, 1, 2]) - intersection
             loss = tf.reduce_sum(-(2 * intersection / (union)))
+
+        elif cost_name == "avg_class_accuracy":
+            eps = 1e-5
+            prediction = pixel_wise_softmax_2(logits)
+            intersection = tf.reduce_sum(prediction * self.y, axis=[0, 1, 2])
+            loss = tf.reduce_sum(-intersection) / (eps + 3 * 512 * 512)
 
         else:
             raise ValueError("Unknown cost function: "%cost_name)
@@ -430,6 +436,7 @@ class Trainer(object):
                         prediction = sess.run(self.net.predicter, feed_dict={self.net.x: batch_x,
                                                                              self.net.y: batch_y,
                                                                              self.net.keep_prob: 1.})
+                        # import pdb; pdb.set_trace()
                         # np.sum(np.sum(batch_y[..., 2], axis=0))
                         # np.sum(np.sum(prediction[..., 2], axis=0))
 

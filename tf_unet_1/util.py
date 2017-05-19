@@ -106,7 +106,7 @@ def combine_img_prediction(data, gt, pred):
     ny = pred.shape[2]
     ch = data.shape[3]
     dtype = gt.dtype
-    valrange=(0, ch-1)
+    valrange = (0, gt.shape[3]-1)
     img = np.concatenate((to_rgb(crop_to_shape(data, pred.shape).reshape(-1, ny, ch)),
                         #   to_rgb(crop_to_shape(gt[..., 1], pred.shape).reshape(-1, ny, 1)),
                         #   to_rgb(pred[..., 1].reshape(-1, ny, 1))), axis=1)

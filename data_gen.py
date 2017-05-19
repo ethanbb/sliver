@@ -21,13 +21,13 @@ class CTScanTestDataProvider(object):
     def __init__(self, npy_folder, a_min=None, a_max=None):
         self.a_min = a_min if a_min is not None else -np.inf
         self.a_max = a_max if a_min is not None else np.inf
-        self.volume_index = -1
+        self.volume_index = 27
         self.volume_depth = -1
         self.non_bg_depth = -1
         self.non_bg_count = -1
         self.bg_count = -1
         self.frame_index = 0
-        self.num_samples = 28
+        self.num_samples = 130
         self.bg_ind = None
         self.non_bg_ind = None
         self.npy_folder = npy_folder
@@ -102,9 +102,9 @@ class CTScanTestDataProvider(object):
         if self.non_bg_count >= self.non_bg_depth - 1:
             self.non_bg_count = -1
             self.data, self.label = self._next_volume()
-        # skew = random.random()
-        skew = True
-        if (skew):
+        skew = random.random()
+        # skew = True
+        if (skew > 0.5):
             self._cycle_non_bg_frame()
             self.frame_index = self.non_bg_ind[self.non_bg_count]
         else:
@@ -116,7 +116,7 @@ class CTScanTestDataProvider(object):
     def _cycle_volume(self):
         self.volume_index += 1
         if self.volume_index >= self.num_samples:
-            self.volume_index = 0
+            self.volume_index = 28
 
     def _next_volume(self):
         self._cycle_volume()
@@ -242,7 +242,7 @@ class CTScanTrainDataProvider(object):
         else:
             self._cycle_bg_frame()
             self.frame_index = self.bg_ind[self.bg_count]
-        print(self.volume_index, self.frame_index)
+        # print(self.volume_index, self.frame_index)
         return self.data[:, :, self.frame_index], self.label[:, :, self.frame_index]
 
     def _cycle_volume(self):

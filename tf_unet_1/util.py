@@ -54,13 +54,14 @@ def plot_prediction(x_test, y_test, prediction, save=False):
         fig.show()
         plt.show()
 
-def to_rgb(img):
+def to_rgb(img, valrange=None):
     """
     Converts the given array into a RGB image. If the number of channels is not
     3 the array is tiled such that it has 3 channels. Finally, the values are
     rescaled to [0,255)
 
     :param img: the array to convert [nx, ny, channels]
+    :param valrange: if speficied, a tuple (min, max) to treat as the min and max values in img.
 
     :returns img: the rgb image [nx, ny, 3]
     """
@@ -70,9 +71,11 @@ def to_rgb(img):
         img = np.tile(img, 3)
 
     img[np.isnan(img)] = 0
-    img -= np.amin(img)
-    if (np.amax(img) != 0):
-        img /= np.amax(img)
+    valmin = valrange[0] if valrange else np.amin(img)
+    valmax = valrange[1] if valrange else np.amax(img)
+    img -= valmin
+    if (valmax != 0):
+        img /= valmax
     img *= 255
     return img
 
@@ -102,9 +105,13 @@ def combine_img_prediction(data, gt, pred):
     """
     ny = pred.shape[2]
     ch = data.shape[3]
+    dtype = gt.dtype
+    valrange=(0, ch-1)
     img = np.concatenate((to_rgb(crop_to_shape(data, pred.shape).reshape(-1, ny, ch)),
-                          to_rgb(crop_to_shape(gt[..., 1], pred.shape).reshape(-1, ny, 1)),
-                          to_rgb(pred[..., 1].reshape(-1, ny, 1))), axis=1)
+                        #   to_rgb(crop_to_shape(gt[..., 1], pred.shape).reshape(-1, ny, 1)),
+                        #   to_rgb(pred[..., 1].reshape(-1, ny, 1))), axis=1)
+                          to_rgb(crop_to_shape(np.argmax(gt, axis=3), pred.shape).reshape(-1, ny, 1).astype(dtype), valrange=valrange),
+                          to_rgb(np.argmax(pred, axis=3).reshape(-1, ny, 1).astype(dtype), valrange=valrange)), axis=1)
     return img
 
 def save_image(img, path):
@@ -113,5 +120,6 @@ def save_image(img, path):
 
     :param img: the rgb image to save
     :param path: the target path
+    :param size: the dpi of image to save ([h,w])
     """
-    Image.fromarray(img.round().astype(np.uint8)).save(path, 'JPEG', dpi=[300,300], quality=90)
+    Image.fromarray(img.round().astype(np.uint8)).save(path, 'PNG')

@@ -98,3 +98,4 @@ images/
 
 # log dir
 unet_trained/
+prediction/

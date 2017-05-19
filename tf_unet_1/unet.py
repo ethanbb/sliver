@@ -430,7 +430,6 @@ class Trainer(object):
                         prediction = sess.run(self.net.predicter, feed_dict={self.net.x: batch_x,
                                                                              self.net.y: batch_y,
                                                                              self.net.keep_prob: 1.})
-                        import pdb; pdb.set_trace()
                         # np.sum(np.sum(batch_y[..., 2], axis=0))
                         # np.sum(np.sum(prediction[..., 2], axis=0))
 
@@ -461,7 +460,7 @@ class Trainer(object):
                                                                         loss))
 
         img = util.combine_img_prediction(batch_x, batch_y, prediction)
-        util.save_image(img, "%s/%s.jpg"%(self.prediction_path, name))
+        util.save_image(img, "%s/%s.png"%(self.prediction_path, name))
 
         return pred_shape
 

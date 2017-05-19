@@ -148,7 +148,7 @@ class CTScanTrainDataProvider(object):
     :param a_max: (optional) max value used for clipping
     """
     channels = 1
-    n_class = 4
+    n_class = 3
 
     def __init__(self, npy_folder, a_min=None, a_max=None):
         self.a_min = a_min if a_min is not None else -np.inf
@@ -187,7 +187,7 @@ class CTScanTrainDataProvider(object):
         labels[..., 0] = (label == 0)
         labels[..., 1] = (label == 1)
         labels[..., 2] = (label == 2)
-        labels[..., 3] = (label == -1)
+        # labels[..., 3] = (label == -1)
         return labels
 
     def _process_data(self, data):

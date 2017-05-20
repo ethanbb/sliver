@@ -234,10 +234,19 @@ class Unet(object):
             loss = tf.reduce_sum(-(2 * intersection / (union)))
 
         elif cost_name == "avg_class_accuracy":
-            eps = 1e-5
-            prediction = pixel_wise_softmax_2(logits)
-            intersection = tf.reduce_sum(prediction * self.y, axis=[0, 1, 2])
-            loss = tf.reduce_sum(-intersection) / (eps + 3 * 512 * 512)
+            class_weights = cost_kwargs.pop("class_weights", np.ones(self.n_class))
+            class_weights = tf.constant(np.array(class_weights, dtype=np.float32))
+
+            weight_map = tf.multiply(flat_labels, class_weights)
+            loss_map = tf.nn.softmax_cross_entropy_with_logits(flat_logits, flat_labels)
+            loss_map = tf.tile(loss_map, [1, self.n_class])
+            # both are npixel x n_class
+
+            weighted_loss = tf.multiply(loss_map, weight_map)
+            px_per_class = tf.reduce_sum(flat_labels, axis=0)
+            loss_sum_per_class = tf.reduce_sum(weighted_loss, axis=0)
+            loss_per_class = tf.divide(loss_sum_per_class, px_per_class)
+            loss = tf.reduce_mean(loss_per_class)
 
         else:
             raise ValueError("Unknown cost function: "%cost_name)
@@ -461,10 +470,9 @@ class Trainer(object):
                                                   self.net.y: util.crop_to_shape(batch_y, pred_shape),
                                                   self.net.keep_prob: 1.})
 
-        logging.info("Verification error= {:.1f}%, loss= {:.4f}".format(error_rate(prediction,
-                                                                                   util.crop_to_shape(batch_y,
-                                                                                                      prediction.shape)),
-                                                                        loss))
+        logging.info("Pixel-wise error= {:.1f}%, loss= {:.4f}".format(error_rate(prediction,
+                                                                                 util.crop_to_shape(batch_y, prediction.shape)),
+                                                                      loss))
 
         img = util.combine_img_prediction(batch_x, batch_y, prediction)
         util.save_image(img, "%s/%s.png"%(self.prediction_path, name))
@@ -476,19 +484,15 @@ class Trainer(object):
 
     def output_minibatch_stats(self, sess, summary_writer, step, batch_x, batch_y):
         # Calculate batch loss and accuracy
-        summary_str, loss, acc, predictions = sess.run([self.summary_op,
-                                                            self.net.cost,
-                                                            self.net.accuracy,
-                                                            self.net.predicter],
-                                                           feed_dict={self.net.x: batch_x,
-                                                                      self.net.y: batch_y,
-                                                                      self.net.keep_prob: 1.})
+        summary_str, loss, acc = sess.run([self.summary_op, self.net.cost, self.net.accuracy],
+                                          feed_dict={self.net.x: batch_x,
+                                                     self.net.y: batch_y,
+                                                     self.net.keep_prob: 1.})
         summary_writer.add_summary(summary_str, step)
         summary_writer.flush()
-        logging.info("Iter {:}, Minibatch Loss= {:.4f}, Training Accuracy= {:.4f}, Minibatch error= {:.1f}%".format(step,
-                                                                                                            loss,
-                                                                                                            acc,
-                                                                                                            error_rate(predictions, batch_y)))
+        logging.info("Iter {:}, Minibatch Loss= {:.4f}, Pixel Accuracy= {:.4f}".format(step,
+                                                                                       loss,
+                                                                                       acc))
 
 
 def error_rate(predictions, labels):

@@ -29,7 +29,6 @@ class CTScanTestDataProvider(object):
         self.data = None
         self.label = None
 
-
     def _load_data_and_label(self):
         data, label = self._next_data()
         if (not np.any(data)):
@@ -75,6 +74,8 @@ class CTScanTestDataProvider(object):
 
     def __call__(self, n=4):
         train_data, labels = self._load_data_and_label()
+        if (not np.any(train_data)):
+            return False, False
         nx = train_data.shape[1]
         ny = train_data.shape[2]
 
@@ -89,6 +90,7 @@ class CTScanTestDataProvider(object):
                 return False, False
             X[i] = train_data
             Y[i] = labels
+        print(self.volume_index, self.frame_index)
         return X, Y
 
     def _cycle_frame(self):
@@ -113,6 +115,7 @@ class CTScanTestDataProvider(object):
     def _next_volume(self):
         if (self._cycle_volume()):
             self.data, self.label = False, False
+            return
         data_path = self.npy_folder + 'volume-' + str(self.volume_index)
         label_path = self.npy_folder + 'segmentation-' + str(self.volume_index)
 

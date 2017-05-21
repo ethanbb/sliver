@@ -28,7 +28,8 @@ if __name__ == '__main__':
                     n_class=generator.n_class,
                     layers=3,
                     features_root=16,
-                    cost="avg_class_accuracy")
+                    cost="avg_class_accuracy",
+                    cost_kwargs={"class_weights": [1, 3, 10]})
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
                            opt_kwargs=dict(momentum=0.2, learning_rate=0.1))

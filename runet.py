@@ -63,6 +63,14 @@ class RUnet(unet.Unet):
         return self._get_cost(self._logits, self.cost_fn, self.cost_kwargs)
 
     @property
+    def liver_dice(self):
+        return -self._get_cost(self._logits, 'liver_dice')
+
+    @property
+    def tumor_dice(self):
+        return -self._get_cost(self._logits, 'tumor_dice')
+
+    @property
     def gradients_node(self):
         return tf.gradients(self.cost, self.variables)
 

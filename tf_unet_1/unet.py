@@ -501,13 +501,13 @@ class Trainer(object):
         pred_shape = prediction.shape
 
 
-        loss = sess.run(self.net.cost, feed_dict={self.net.x: batch_x,
-                                                  self.net.y: util.crop_to_shape(batch_y, pred_shape),
-                                                  self.net.keep_prob: 1.})
+        loss, liver_dice, tumor_dice = sess.run((self.net.cost, self.net.liver_dice, self.net.tumor_dice),
+                                                feed_dict={self.net.x: batch_x,
+                                                           self.net.y: util.crop_to_shape(batch_y, pred_shape),
+                                                           self.net.keep_prob: 1.})
 
-        logging.info("Pixel-wise error= {:.1f}%, loss= {:.4f}".format(error_rate(prediction,
-                                                                                 util.crop_to_shape(batch_y, prediction.shape)),
-                                                                      loss))
+        logging.info("Test: Pixel error= {:.1f}%, Loss= {:.4f}, Liver Dice= {:.4f}, Tumor Dice= {:.4f}".format(
+            error_rate(prediction, util.crop_to_shape(batch_y, prediction.shape)), loss, liver_dice, tumor_dice))
 
         img = util.combine_img_prediction(batch_x, batch_y, prediction)
         util.save_image(img, "%s/%s.png"%(self.prediction_path, name))

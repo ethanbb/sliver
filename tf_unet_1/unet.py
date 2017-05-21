@@ -184,7 +184,7 @@ class Unet(object):
 
         self.x = tf.placeholder("float", shape=[None, None, None, channels])
         self.y = tf.placeholder("float", shape=[None, None, None, n_class])
-        self.keep_prob = tf.placeholder(tf.float32) #dropout (keep probability)
+        self.keep_prob = tf.placeholder(tf.float32)  # dropout (keep probability)
 
         logits, self.variables, self.offset = create_conv_net(self.x, self.keep_prob, channels, n_class, **kwargs)
 
@@ -218,7 +218,7 @@ class Unet(object):
                 weight_map = tf.multiply(flat_labels, class_weights)
                 weight_map = tf.reduce_sum(weight_map, axis=1)
 
-                loss_map = tf.nn.softmax_cross_entropy_with_logits(flat_logits, flat_labels)
+                loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
                 weighted_loss = tf.multiply(loss_map, weight_map)
 
                 loss = tf.reduce_mean(weighted_loss)
@@ -238,14 +238,19 @@ class Unet(object):
             class_weights = tf.constant(np.array(class_weights, dtype=np.float32))
 
             weight_map = tf.multiply(flat_labels, class_weights)
-            loss_map = tf.nn.softmax_cross_entropy_with_logits(flat_logits, flat_labels)
-            loss_map = tf.tile(loss_map, [1, self.n_class])
+            loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
+            loss_map = tf.tile(tf.expand_dims(loss_map, 1), [1, self.n_class])
             # both are npixel x n_class
 
             weighted_loss = tf.multiply(loss_map, weight_map)
-            px_per_class = tf.reduce_sum(flat_labels, axis=0)
             loss_sum_per_class = tf.reduce_sum(weighted_loss, axis=0)
-            loss_per_class = tf.divide(loss_sum_per_class, px_per_class)
+
+            px_per_class = tf.reduce_sum(flat_labels, axis=0)
+            include_class = tf.not_equal(px_per_class, 0)
+            loss_sum_per_class_valid = tf.boolean_mask(loss_sum_per_class, include_class)
+            px_per_class_valid = tf.boolean_mask(px_per_class, include_class)
+
+            loss_per_class = tf.divide(loss_sum_per_class_valid, px_per_class_valid)
             loss = tf.reduce_mean(loss_per_class)
 
         else:

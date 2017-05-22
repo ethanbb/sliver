@@ -135,26 +135,30 @@ class CTScanTrainDataProvider(object):
     method can be overwritten. To enable some post processing such as data
     augmentation the `_post_process` method can be overwritten.
 
+    :param npy_folder: the folder containing liver scans and labels in npy format
+    :param weighting: (optional) if specified, a pair consisting of:
+        - probability of returning a subvolume containing tumor
+        - probability of returning a subvolume containing liver but no tumor
+        Returns a subvolume contianing only background with the remaining probability.
+        If not specified, picks subvolumes at random.
     :param a_min: (optional) min value used for clipping
     :param a_max: (optional) max value used for clipping
     """
     channels = 1
     n_class = 3
 
-    def __init__(self, npy_folder, a_min=None, a_max=None):
+    def __init__(self, npy_folder, weighting=None, a_min=None, a_max=None):
         self.a_min = a_min if a_min is not None else -np.inf
         self.a_max = a_max if a_min is not None else np.inf
         self.volume_index = -1
-        self.volume_depth = -1
-        self.non_bg_depth = -1
-        self.non_bg_count = -1
-        self.bg_count = -1
-        self.frame_index = 0
+        # boolean arrays of what each frame contains
+        self.bg_frames = []
+        self.liver_frames = []  # contain liver but no tumor
+        self.tumor_frames = []
         self.num_samples = 28
-        self.bg_ind = None
-        self.non_bg_ind = None
         self.npy_folder = npy_folder
-
+        self.weighting = weighting or (0, 0)
+        self.no_weighting = weighting is None
 
     def _load_data_and_label(self):
         data, label = self._next_data()
@@ -198,7 +202,29 @@ class CTScanTrainDataProvider(object):
         """
         return data, labels
 
-    def __call__(self, n=4):
+    def __call__(self, n):
+        if self.volume_index == -1:
+            self.data, self.label = self._next_volume()
+
+        skew = random.random()
+        if skew < self.weighting[0]:
+            arr1 = self.tumor_frames
+        elif skew < (self.weighting[0] + self.weighting[1]):
+            arr1 = self.liver_frames
+        else:
+            arr1 = self.bg_frames
+
+        arr2 = np.full(n, 1)
+        valid_start = np.nonzero(np.convolve(arr1, arr2, 'valid') == n)[0]
+        if len(valid_start) == 0:
+            self.data, self.label = self._next_volume()
+            return self(n)
+
+        start = np.random.choice(valid_start)
+        self.frame_index = start - 1
+        slice_range = range(start, start + n)
+        arr1[slice_range] = False
+
         train_data, labels = self._load_data_and_label()
         nx = train_data.shape[1]
         ny = train_data.shape[2]
@@ -215,25 +241,9 @@ class CTScanTrainDataProvider(object):
 
         return X, Y
 
-    def _cycle_non_bg_frame(self):
-        self.non_bg_count += 1
-
-    def _cycle_bg_frame(self):
-        self.bg_count += 1
-
     def _next_data(self):
-        if self.non_bg_count >= self.non_bg_depth - 1:
-            self.non_bg_count = -1
-            self.data, self.label = self._next_volume()
-        skew = random.random()
-        # skew = True
-        if (skew > 0.5):
-            self._cycle_non_bg_frame()
-            self.frame_index = self.non_bg_ind[self.non_bg_count]
-        else:
-            self._cycle_bg_frame()
-            self.frame_index = self.bg_ind[self.bg_count]
         # print(self.volume_index, self.frame_index)
+        self.frame_index += 1
         return self.data[:, :, self.frame_index], self.label[:, :, self.frame_index]
 
     def _cycle_volume(self):
@@ -249,11 +259,17 @@ class CTScanTrainDataProvider(object):
         data = np.load(data_path + '.npy')
         label = np.load(label_path + '.npy')
 
-        # self.non_bg_ind = np.unique(np.where(label == 2)[2])
-        self.non_bg_ind = np.unique(label.nonzero()[2])
-        self.non_bg_ind = np.random.permutation(self.non_bg_ind)
-        self.bg_ind = np.where(label == 0)[2]
+        if self.no_weighting:
+            self.bg_frames = np.full(np.shape(label)[2], True)
+            self.liver_frames = np.full(np.shape(label)[2], False)
+            self.tumor_frames = np.full(np.shape(label)[2], False)
+        else:
+            self.liver_frames = np.full(np.shape(label)[2], False)
+            self.tumor_frames = np.full(np.shape(label)[2], False)
 
-        self.non_bg_depth = self.non_bg_ind.shape[0]
-        self.volume_depth = data.shape[2]
+            self.tumor_frames[np.unique(np.where(label == 2)[2])] = True
+            self.liver_frames[np.unique(np.where(label == 1)[2])] = True
+            self.liver_frames &= ~self.tumor_frames
+            self.bg_frames = ~self.tumor_frames & ~self.liver_frames
+
         return data, label

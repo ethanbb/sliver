@@ -2,6 +2,7 @@ from __future__ import print_function, division, absolute_import, unicode_litera
 from tf_unet_1 import unet
 from tf_unet_1 import util
 from data_gen import CTScanTrainDataProvider
+from data_gen import CTScanTestDataProvider
 
 # 2017-05-17 20:57:09,612 Epoch 19, Average loss: -1.1076, learning rate: 0.0377
 # 2017-05-17 20:57:09,968 Verification error= 3.9%, loss= -1.0624
@@ -14,15 +15,15 @@ from data_gen import CTScanTrainDataProvider
 
 if __name__ == '__main__':
     training_iters = 20
-    epochs = 50
+    epochs = 10
     dropout = 0.75  # Dropout, probability to keep units
     display_step = 2
     restore = False
 
-    npy_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data_notoken/'
-
-    generator = CTScanTrainDataProvider(npy_folder, weighting=(0.4, 0.3))
-    batch_size = 50
+    train_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data_notoken/'
+    test_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 2/npy_data_notoken/'
+    generator = CTScanTrainDataProvider(train_folder, weighting=(0.4, 0.3))
+    batch_size = 4
 
     net = unet.Unet(channels=generator.channels,
                     n_class=generator.n_class,
@@ -41,7 +42,7 @@ if __name__ == '__main__':
                          display_step=display_step,
                          restore=restore)
 
-    test_generator = CTScanTrainDataProvider(npy_folder, weighting=(1, 0))
+    test_generator = CTScanTestDataProvider(npy_folder)
     x_test, y_test = test_generator(50)
     prediction = net.predict(path, x_test)
 

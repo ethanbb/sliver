@@ -29,7 +29,7 @@ if __name__ == '__main__':
                     n_class=generator.n_class,
                     layers=3,
                     features_root=16,
-                    cost="avg_class_ce",
+                    cost="avg_class_ce_symmetric",
                     cost_kwargs={"class_weights": [1, 7, 20]})
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",

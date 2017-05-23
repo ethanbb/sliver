@@ -10,7 +10,7 @@ if __name__ == '__main__':
     # generator = CTScanTrainDataProvider('/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data_notoken/')
     test_generator = CTScanTestDataProvider('/ihome/azhu/cs189/data/liverScans/Training Batch 2/npy_data_notoken/')
 
-    batch_size = 4
+    batch_size = 20
 
     net = unet.Unet(channels=test_generator.channels,
                     n_class=test_generator.n_class,
@@ -20,12 +20,12 @@ if __name__ == '__main__':
 
     test_batch_num = 0
     err = 0.
-    x_test, y_test = test_generator(50)
+    x_test, y_test = test_generator(batch_size)
     while (np.any(x_test)):
         test_batch_num += 1
         prediction = net.predict('./unet_trained/model.cpkt', x_test)
         err += unet.error_rate(prediction, util.crop_to_shape(y_test, prediction.shape))
-        x_test, y_test = test_generator(50)
+        x_test, y_test = test_generator(batch_size)
 
     print("Total summed err: {:.2f}".format(err))
     final_err = err / test_batch_num

@@ -15,15 +15,15 @@ from data_gen import CTScanTestDataProvider
 
 if __name__ == '__main__':
     training_iters = 20
-    epochs = 10
+    epochs = 20
     dropout = 0.75  # Dropout, probability to keep units
     display_step = 2
     restore = False
 
     train_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data_notoken/'
     test_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 2/npy_data_notoken/'
-    generator = CTScanTrainDataProvider(train_folder, weighting=(0.4, 0.3))
-    batch_size = 4
+    generator = CTScanTrainDataProvider(train_folder, weighting=(0.5, 0.3))
+    batch_size = 10
 
     net = unet.Unet(channels=generator.channels,
                     n_class=generator.n_class,
@@ -42,7 +42,7 @@ if __name__ == '__main__':
                          display_step=display_step,
                          restore=restore)
 
-    test_generator = CTScanTestDataProvider(npy_folder)
+    test_generator = CTScanTestDataProvider(test_folder)
     x_test, y_test = test_generator(50)
     prediction = net.predict(path, x_test)
 

@@ -38,4 +38,5 @@ def elastic_transform(image, labels, alpha, sigma, random_state=None):
     labels[..., 1] = label1_mapped
     labels[..., 2] = label2_mapped
 
+    print('Performing elastic deformation')
     return image_mapped, labels

@@ -298,7 +298,7 @@ class Unet(object):
             weighted_loss = tf.multiply(loss_map, weight_map)
             loss_sum_per_class = tf.reduce_sum(weighted_loss, axis=0)
 
-            px_per_class = tf.reduce_sum(flat_labels, axis=0)
+            px_per_class = tf.reduce_sum(flat_labels, axis=0) + tf.reduce_sum(flat_prediction, axis=0)
             include_class = tf.not_equal(px_per_class, 0)
             loss_sum_per_class_valid = tf.boolean_mask(loss_sum_per_class, include_class)
             px_per_class_valid = tf.boolean_mask(px_per_class, include_class)

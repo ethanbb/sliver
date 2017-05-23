@@ -165,7 +165,9 @@ class CTScanTrainDataProvider(object):
         train_data = self._process_data(data)
         labels = self._process_labels(label)
 
-        return train_data.reshape(1, ny, nx, self.channels), labels.reshape(1, ny, nx, self.n_class)
+        aug_data, aug_labels = self._augment_data(train_data, labels)
+
+        return train_data.reshape(1, ny, nx, self.channels), labels.reshape(1, ny, nx, self.n_class), aug_data.reshape(1, ny, nx, self.channels), aug_labels.reshape(1, ny, nx, self.n_class)
 
     def _process_labels(self, label):
         nx = label.shape[1]
@@ -201,7 +203,7 @@ class CTScanTrainDataProvider(object):
         if self.volume_index == -1:
             self.data, self.label = self._next_volume()
 
-        num_frames = len(self.unused_frames)
+        num_frames = len(self.unused_frames) * 2  # data augmentation doubles frame number
         if n > num_frames:
             warnings.warn('Batch size is larger than volume; padding with zeros')
             X, Y = self(num_frames)
@@ -243,7 +245,7 @@ class CTScanTrainDataProvider(object):
         slice_range = range(start, start + n)
         self.unused_frames[slice_range] = False
 
-        train_data, labels = self._load_data_and_label()
+        train_data, labels, aug_data, aug_labels = self._load_data_and_label()
         nx = train_data.shape[1]
         ny = train_data.shape[2]
 
@@ -252,19 +254,18 @@ class CTScanTrainDataProvider(object):
 
         X[0] = train_data
         Y[0] = labels
-        X[1], Y[1] = self._augment_data(train_data, labels)
+        X[1] = aug_data
+        Y[1] = aug_labels
 
         for i in range(1, n):
-            train_data, labels = self._load_data_and_label()
+            train_data, labels, aug_data, aug_labels = self._load_data_and_label()
             if (not np.any(train_data)):
                 return False, False
             X[2*i] = train_data
             Y[2*i] = labels
-            train_data_aug, labels_aug = self._augment_data(train_data, labels)
-            X[2*i+1] = train_data_aug
-            Y[2*i+1] = labels_aug
+            X[2*i+1] = aug_data
+            Y[2*i+1] = aug_labels
 
-        print('Augmentating data')
         return X, Y
 
     def _next_data(self):

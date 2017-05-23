@@ -1,4 +1,5 @@
 from __future__ import print_function, division, absolute_import, unicode_literals
+from elastic_deformation import elastic_transform
 
 import numpy as np
 import random
@@ -64,14 +65,17 @@ class CTScanTestDataProvider(object):
             data /= np.amax(data)
         return data
 
-    def _post_process(self, data, labels):
+    def _augment_data(self, data, labels):
         """
         Post processing hook that can be used for data augmentation
 
         :param data: the data array
         :param labels: the label array
         """
-        return data, labels
+        aug_data, aug_labels = elastic_transform(data, labels,
+                                                 data.shape[1] * 2,
+                                                 data.shape[1] * 0.08)
+        return aug_data, aug_labels
 
     def __call__(self, n=4):
         train_data, labels = self._load_data_and_label()
@@ -80,17 +84,23 @@ class CTScanTestDataProvider(object):
         nx = train_data.shape[1]
         ny = train_data.shape[2]
 
-        X = np.zeros((n, nx, ny, self.channels))
-        Y = np.zeros((n, nx, ny, self.n_class))
+        X = np.zeros((2*n, nx, ny, self.channels))
+        Y = np.zeros((2*n, nx, ny, self.n_class))
 
         X[0] = train_data
         Y[0] = labels
+        X[1], Y[1] = self._augment_data(train_data, labels)
+
         for i in range(1, n):
             train_data, labels = self._load_data_and_label()
             if (not np.any(train_data)):
                 return False, False
-            X[i] = train_data
-            Y[i] = labels
+            X[2*i] = train_data
+            Y[2*i] = labels
+            train_data_aug, labels_aug = self._augment_data(train_data, labels)
+            X[2*i+1] = train_data_aug
+            Y[2*i+1] = labels_aug
+
         print(self.volume_index, self.frame_index)
         return X, Y
 

@@ -12,7 +12,7 @@ def elastic_transform(image, labels, alpha, sigma, random_state=None):
        Modified From:
            https://gist.github.com/chsasank/4d8f68caf01f041a6453e67fb30f8f5a
     """
-    assert len(image.shape) == 2
+    # assert len(image.shape) == 2
 
     label0 = labels[..., 0]
     label1 = labels[..., 1]
@@ -38,5 +38,5 @@ def elastic_transform(image, labels, alpha, sigma, random_state=None):
     labels[..., 1] = label1_mapped
     labels[..., 2] = label2_mapped
 
-    print('Performing elastic deformation')
+    # print('Performing elastic deformation')
     return image_mapped, labels

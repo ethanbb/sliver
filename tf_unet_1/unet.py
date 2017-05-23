@@ -263,11 +263,34 @@ class Unet(object):
 
             loss = -(2. * intersection / (size_pred + size_gt + eps))
 
-        elif cost_name == "avg_class_accuracy":
+        elif cost_name == "avg_class_ce":
             class_weights = cost_kwargs.pop("class_weights", np.ones(self.n_class))
             class_weights = tf.constant(np.array(class_weights, dtype=np.float32))
 
             weight_map = tf.multiply(flat_labels, class_weights)
+            loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
+            loss_map = tf.tile(tf.expand_dims(loss_map, 1), [1, self.n_class])
+            # both are npixel x n_class
+
+            weighted_loss = tf.multiply(loss_map, weight_map)
+            loss_sum_per_class = tf.reduce_sum(weighted_loss, axis=0)
+
+            px_per_class = tf.reduce_sum(flat_labels, axis=0)
+            include_class = tf.not_equal(px_per_class, 0)
+            loss_sum_per_class_valid = tf.boolean_mask(loss_sum_per_class, include_class)
+            px_per_class_valid = tf.boolean_mask(px_per_class, include_class)
+
+            loss_per_class = tf.divide(loss_sum_per_class_valid, px_per_class_valid)
+            loss = tf.reduce_mean(loss_per_class)
+
+        elif cost_name == "avg_class_ce_symmetric":
+            prediction = pixel_wise_softmax_2(logits)
+            flat_prediction = tf.reshape(prediction, [-1, self.n_class])
+
+            class_weights = cost_kwargs.pop("class_weights", np.ones(self.n_class))
+            class_weights = tf.constant(np.array(class_weights, dtype=np.float32))
+
+            weight_map = tf.multiply(flat_labels, class_weights) + tf.multiply(flat_prediction, class_weights)
             loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
             loss_map = tf.tile(tf.expand_dims(loss_map, 1), [1, self.n_class])
             # both are npixel x n_class

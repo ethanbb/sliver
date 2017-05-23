@@ -26,7 +26,7 @@ class CTScanTestDataProvider(object):
         self.volume_index = 27
         self.volume_depth = -1
         self.frame_index = -2
-        self.num_samples = 130
+        self.num_samples = 40  # 130 is full
         self.npy_folder = npy_folder
         self.data = None
         self.label = None

@@ -21,14 +21,15 @@ if __name__ == '__main__':
 
     npy_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data_notoken/'
 
-    generator = CTScanTrainDataProvider(npy_folder)
-    batch_size = 4
+    generator = CTScanTrainDataProvider(npy_folder, weighting=(0.4, 0.3))
+    batch_size = 50
 
     net = unet.Unet(channels=generator.channels,
                     n_class=generator.n_class,
                     layers=3,
                     features_root=16,
-                    cost="dice_coefficient")
+                    cost="avg_class_accuracy",
+                    cost_kwargs={"class_weights": [1, 3, 10]})
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
                            opt_kwargs=dict(momentum=0.2, learning_rate=0.1))
@@ -40,7 +41,8 @@ if __name__ == '__main__':
                          display_step=display_step,
                          restore=restore)
 
-    x_test, y_test = generator(4)
+    test_generator = CTScanTrainDataProvider(npy_folder, weighting=(1, 0))
+    x_test, y_test = test_generator(50)
     prediction = net.predict(path, x_test)
 
     print("Testing error rate: {:.2f}%".format(unet.error_rate(prediction, util.crop_to_shape(y_test, prediction.shape))))

@@ -184,11 +184,13 @@ class Unet(object):
 
         self.x = tf.placeholder("float", shape=[None, None, None, channels])
         self.y = tf.placeholder("float", shape=[None, None, None, n_class])
-        self.keep_prob = tf.placeholder(tf.float32) #dropout (keep probability)
+        self.keep_prob = tf.placeholder(tf.float32)  # dropout (keep probability)
 
         logits, self.variables, self.offset = create_conv_net(self.x, self.keep_prob, channels, n_class, **kwargs)
 
         self.cost = self._get_cost(logits, cost, cost_kwargs)
+        self.liver_dice = -self._get_cost(logits, 'liver_dice')
+        self.tumor_dice = -self._get_cost(logits, 'tumor_dice')
 
         self.gradients_node = tf.gradients(self.cost, self.variables)
 
@@ -199,7 +201,7 @@ class Unet(object):
         self.correct_pred = tf.equal(tf.argmax(self.predicter, 3), tf.argmax(self.y, 3))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
 
-    def _get_cost(self, logits, cost_name, cost_kwargs):
+    def _get_cost(self, logits, cost_name, cost_kwargs={}):
         """
         Constructs the cost function, either cross_entropy, weighted cross_entropy or dice_coefficient.
         Optional arguments are:
@@ -218,7 +220,7 @@ class Unet(object):
                 weight_map = tf.multiply(flat_labels, class_weights)
                 weight_map = tf.reduce_sum(weight_map, axis=1)
 
-                loss_map = tf.nn.softmax_cross_entropy_with_logits(flat_logits, flat_labels)
+                loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
                 weighted_loss = tf.multiply(loss_map, weight_map)
 
                 loss = tf.reduce_mean(weighted_loss)
@@ -226,18 +228,60 @@ class Unet(object):
             else:
                 loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits,
                                                                               labels=flat_labels))
-        elif cost_name == "dice_coefficient":
+        # elif cost_name == "dice_coefficient":
+        #     eps = 1e-5
+        #     prediction = pixel_wise_softmax_2(logits)
+        #     intersection = tf.reduce_sum(prediction * self.y, axis=[0, 1, 2])
+        #     union = eps + tf.reduce_sum(prediction, axis=[0, 1, 2]) + tf.reduce_sum(self.y, axis=[0, 1, 2]) - intersection
+        #     loss = tf.reduce_sum(-(2 * intersection / (union)))
+
+        elif cost_name == "liver_dice":
             eps = 1e-5
-            prediction = pixel_wise_softmax_2(logits)
-            intersection = tf.reduce_sum(prediction * self.y, axis=[0, 1, 2])
-            union = eps + tf.reduce_sum(prediction, axis=[0, 1, 2]) + tf.reduce_sum(self.y, axis=[0, 1, 2]) - intersection
-            loss = tf.reduce_sum(-(2 * intersection / (union)))
+            prediction = tf.argmax(pixel_wise_softmax_2(logits), axis=3)
+            gt = tf.argmax(self.y, axis=3)
+
+            prediction_b = prediction > 0
+            gt_b = gt > 0
+
+            intersection = tf.to_float(tf.count_nonzero(prediction_b & gt_b))
+            size_pred = tf.to_float(tf.count_nonzero(prediction_b))
+            size_gt = tf.to_float(tf.count_nonzero(gt_b))
+
+            loss = -(2. * intersection / (size_pred + size_gt + eps))
+
+        elif cost_name == "tumor_dice":
+            eps = 1e-5
+            prediction = tf.argmax(pixel_wise_softmax_2(logits), axis=3)
+            gt = tf.argmax(self.y, axis=3)
+
+            prediction_b = prediction > 1
+            gt_b = gt > 1
+
+            intersection = tf.to_float(tf.count_nonzero(prediction_b & gt_b))
+            size_pred = tf.to_float(tf.count_nonzero(prediction_b))
+            size_gt = tf.to_float(tf.count_nonzero(gt_b))
+
+            loss = -(2. * intersection / (size_pred + size_gt + eps))
 
         elif cost_name == "avg_class_accuracy":
-            eps = 1e-5
-            prediction = pixel_wise_softmax_2(logits)
-            intersection = tf.reduce_sum(prediction * self.y, axis=[0, 1, 2])
-            loss = tf.reduce_sum(-intersection) / (eps + 3 * 512 * 512)
+            class_weights = cost_kwargs.pop("class_weights", np.ones(self.n_class))
+            class_weights = tf.constant(np.array(class_weights, dtype=np.float32))
+
+            weight_map = tf.multiply(flat_labels, class_weights)
+            loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
+            loss_map = tf.tile(tf.expand_dims(loss_map, 1), [1, self.n_class])
+            # both are npixel x n_class
+
+            weighted_loss = tf.multiply(loss_map, weight_map)
+            loss_sum_per_class = tf.reduce_sum(weighted_loss, axis=0)
+
+            px_per_class = tf.reduce_sum(flat_labels, axis=0)
+            include_class = tf.not_equal(px_per_class, 0)
+            loss_sum_per_class_valid = tf.boolean_mask(loss_sum_per_class, include_class)
+            px_per_class_valid = tf.boolean_mask(px_per_class, include_class)
+
+            loss_per_class = tf.divide(loss_sum_per_class_valid, px_per_class_valid)
+            loss = tf.reduce_mean(loss_per_class)
 
         else:
             raise ValueError("Unknown cost function: "%cost_name)
@@ -457,14 +501,13 @@ class Trainer(object):
         pred_shape = prediction.shape
 
 
-        loss = sess.run(self.net.cost, feed_dict={self.net.x: batch_x,
-                                                  self.net.y: util.crop_to_shape(batch_y, pred_shape),
-                                                  self.net.keep_prob: 1.})
+        loss, liver_dice, tumor_dice = sess.run((self.net.cost, self.net.liver_dice, self.net.tumor_dice),
+                                                feed_dict={self.net.x: batch_x,
+                                                           self.net.y: util.crop_to_shape(batch_y, pred_shape),
+                                                           self.net.keep_prob: 1.})
 
-        logging.info("Verification error= {:.1f}%, loss= {:.4f}".format(error_rate(prediction,
-                                                                                   util.crop_to_shape(batch_y,
-                                                                                                      prediction.shape)),
-                                                                        loss))
+        logging.info("Test: Pixel error= {:.1f}%, Loss= {:.4f}, Liver Dice= {:.4f}, Tumor Dice= {:.4f}".format(
+            error_rate(prediction, util.crop_to_shape(batch_y, prediction.shape)), loss, liver_dice, tumor_dice))
 
         img = util.combine_img_prediction(batch_x, batch_y, prediction)
         util.save_image(img, "%s/%s.png"%(self.prediction_path, name))
@@ -476,19 +519,14 @@ class Trainer(object):
 
     def output_minibatch_stats(self, sess, summary_writer, step, batch_x, batch_y):
         # Calculate batch loss and accuracy
-        summary_str, loss, acc, predictions = sess.run([self.summary_op,
-                                                            self.net.cost,
-                                                            self.net.accuracy,
-                                                            self.net.predicter],
-                                                           feed_dict={self.net.x: batch_x,
-                                                                      self.net.y: batch_y,
-                                                                      self.net.keep_prob: 1.})
+        summary_str, loss, acc, ld, td = sess.run([self.summary_op, self.net.cost, self.net.accuracy, self.net.liver_dice, self.net.tumor_dice],
+                                          feed_dict={self.net.x: batch_x,
+                                                     self.net.y: batch_y,
+                                                     self.net.keep_prob: 1.})
         summary_writer.add_summary(summary_str, step)
         summary_writer.flush()
-        logging.info("Iter {:}, Minibatch Loss= {:.4f}, Training Accuracy= {:.4f}, Minibatch error= {:.1f}%".format(step,
-                                                                                                            loss,
-                                                                                                            acc,
-                                                                                                            error_rate(predictions, batch_y)))
+        logging.info("Iter {:}, Minibatch Loss= {:.4f}, Pixel Accuracy= {:.4f}, Liver Dice= {:.4f}, Tumor Dice= {:.4f}".format(
+            step, loss, acc, ld, td))
 
 
 def error_rate(predictions, labels):

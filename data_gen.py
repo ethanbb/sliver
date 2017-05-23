@@ -2,6 +2,7 @@ from __future__ import print_function, division, absolute_import, unicode_litera
 
 import numpy as np
 import random
+import warnings
 
 class CTScanTestDataProvider(object):
     """
@@ -152,12 +153,13 @@ class CTScanTrainDataProvider(object):
         self.a_max = a_max if a_min is not None else np.inf
         self.volume_index = -1
         # boolean arrays of what each frame contains
+        self.unused_frames = []
         self.bg_frames = []
         self.liver_frames = []  # contain liver but no tumor
         self.tumor_frames = []
         self.num_samples = 28
         self.npy_folder = npy_folder
-        self.weighting = weighting or (0, 0)
+        self.weighting = weighting
         self.no_weighting = weighting is None
 
     def _load_data_and_label(self):
@@ -206,16 +208,39 @@ class CTScanTrainDataProvider(object):
         if self.volume_index == -1:
             self.data, self.label = self._next_volume()
 
-        skew = random.random()
-        if skew < self.weighting[0]:
-            arr1 = self.tumor_frames
-        elif skew < (self.weighting[0] + self.weighting[1]):
-            arr1 = self.liver_frames
-        else:
-            arr1 = self.bg_frames
+        num_frames = len(self.unused_frames)
+        if n > num_frames:
+            warnings.warn('Batch size is larger than volume; padding with zeros')
+            X, Y = self(num_frames)
+            nx = X.shape[1]
+            ny = Y.shape[2]
 
-        arr2 = np.full(n, 1)
-        valid_start = np.nonzero(np.convolve(arr1, arr2, 'valid') == n)[0]
+            X = np.concatenate((X, np.zeros((n - num_frames, nx, ny, self.channels))))
+            Y = np.concatenate((Y, np.zeros((n - num_frames, nx, ny, self.n_class))))
+            Y[num_frames:, :, :, 0] = 1
+
+            return X, Y
+
+        window = np.full(n, 1)
+        valid_start = np.convolve(self.unused_frames, window, 'valid') == n
+
+        if not self.no_weighting:
+            skew = random.random()
+            if skew < self.weighting[0]:
+                # with tumor
+                has_tumor = np.convolve(self.tumor_frames, window, 'valid') > 0
+                valid_start &= has_tumor
+            elif skew < (self.weighting[0] + self.weighting[1]):
+                # liver, no tumor
+                has_tumor = np.convolve(self.tumor_frames, window, 'valid') > 0
+                has_liver = np.convolve(self.liver_frames, window, 'valid') > 0
+                valid_start = valid_start & ~has_tumor & has_liver
+            else:
+                # no liver or tumor
+                all_bg = np.convolve(self.bg_frames, window, 'valid') == n
+                valid_start &= all_bg
+
+        valid_start = np.nonzero(valid_start)[0]
         if len(valid_start) == 0:
             self.data, self.label = self._next_volume()
             return self(n)
@@ -223,7 +248,7 @@ class CTScanTrainDataProvider(object):
         start = np.random.choice(valid_start)
         self.frame_index = start - 1
         slice_range = range(start, start + n)
-        arr1[slice_range] = False
+        self.unused_frames[slice_range] = False
 
         train_data, labels = self._load_data_and_label()
         nx = train_data.shape[1]
@@ -259,11 +284,9 @@ class CTScanTrainDataProvider(object):
         data = np.load(data_path + '.npy')
         label = np.load(label_path + '.npy')
 
-        if self.no_weighting:
-            self.bg_frames = np.full(np.shape(label)[2], True)
-            self.liver_frames = np.full(np.shape(label)[2], False)
-            self.tumor_frames = np.full(np.shape(label)[2], False)
-        else:
+        self.unused_frames = np.full(np.shape(label)[2], True)
+
+        if not self.no_weighting:
             self.liver_frames = np.full(np.shape(label)[2], False)
             self.tumor_frames = np.full(np.shape(label)[2], False)
 

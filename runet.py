@@ -7,7 +7,7 @@ import conv_rnn_cell as crc
 import conv_rnn as cr
 from tensorflow.python.ops import variable_scope as vs
 from tf_unet_1.layers import (weight_variable, weight_variable_devonc,
-                              bias_variable, conv2d, deconv2d, max_pool,
+                              bias_variable, conv2d, deconv2d_runet, max_pool,
                               crop_and_concat, pixel_wise_softmax_2,
                               cross_entropy)
 
@@ -221,7 +221,7 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         wd = weight_variable_devonc([pool_size, pool_size,
                                     features//2, features], stddev)
         bd = bias_variable([features//2])
-        h_deconv = tf.nn.relu(deconv2d(in_node, wd, pool_size) + bd)
+        h_deconv = tf.nn.relu(deconv2d_runet(in_node, wd, pool_size) + bd)
         h_deconv_concat = crop_and_concat(dw_h_convs[layer], h_deconv)
         deconv[layer] = h_deconv_concat
 

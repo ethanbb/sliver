@@ -377,6 +377,8 @@ class Trainer(object):
 
     def __init__(self, net, batch_size=1, optimizer="momentum", opt_kwargs={}):
         self.net = net
+        if hasattr(self.net, 'lstm_variables'):
+            self.verification_batch_size = self.net.batch_size
         self.batch_size = batch_size
         self.optimizer = optimizer
         self.opt_kwargs = opt_kwargs

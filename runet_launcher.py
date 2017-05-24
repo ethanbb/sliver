@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
 
     generator = CTScanTrainDataProvider(npy_folder, weighting=(0.5, 0.2))
-    batch_size = 17
+    batch_size = 10
 
     net = runet.RUnet(batch_size=batch_size,
                       n_lstm_layers=1,
@@ -31,12 +31,12 @@ if __name__ == '__main__':
                       n_class=generator.n_class,
                       layers=3,
                       features_root=16,
-                      cost="avg_class_ce_symmetric",
-                      cost_kwargs={"class_weights": [1, 7, 20]})
+                      cost="avg_class_ce",
+                      cost_kwargs={"class_weights": [0, 1, 5]})
     net.use_lstm = True
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
-                           opt_kwargs=dict(momentum=0.2, learning_rate=0.2))
+                           opt_kwargs=dict(momentum=0.9, learning_rate=0.05))
     path = trainer.train(generator, "./runet_trained",
                          training_iters=training_iters,
                          epochs=epochs,

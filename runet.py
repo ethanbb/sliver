@@ -22,7 +22,7 @@ class RUnet(unet.Unet):
     def __init__(self, batch_size, n_lstm_layers=1, channels=3, n_class=2,
                  cost="cross_entropy", cost_kwargs={}, **kwargs):
         tf.reset_default_graph()
-
+        self.batch_size = batch_size
         self.n_class = n_class
         self.summaries = kwargs.get("summaries", True)
 

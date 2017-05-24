@@ -228,12 +228,12 @@ class Unet(object):
             else:
                 loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits,
                                                                               labels=flat_labels))
-        # elif cost_name == "dice_coefficient":
-        #     eps = 1e-5
-        #     prediction = pixel_wise_softmax_2(logits)
-        #     intersection = tf.reduce_sum(prediction * self.y, axis=[0, 1, 2])
-        #     union = eps + tf.reduce_sum(prediction, axis=[0, 1, 2]) + tf.reduce_sum(self.y, axis=[0, 1, 2]) - intersection
-        #     loss = tf.reduce_sum(-(2 * intersection / (union)))
+        elif cost_name == "dice_coefficient":
+            eps = 1e-5
+            prediction = pixel_wise_softmax_2(logits)
+            intersection = tf.reduce_sum(prediction * self.y, axis=[0, 1, 2])
+            union = eps + tf.reduce_sum(prediction, axis=[0, 1, 2]) + tf.reduce_sum(self.y, axis=[0, 1, 2]) - intersection
+            loss = tf.reduce_sum(-(2 * intersection / (union)))
 
         elif cost_name == "liver_dice":
             eps = 1e-5
@@ -270,7 +270,7 @@ class Unet(object):
             weight_map = tf.multiply(flat_labels, class_weights)
             loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
             loss_map = tf.tile(tf.expand_dims(loss_map, 1), [1, self.n_class])
-            # both are npixel x n_class
+            # both npixel x n_class
 
             weighted_loss = tf.multiply(loss_map, weight_map)
             loss_sum_per_class = tf.reduce_sum(weighted_loss, axis=0)
@@ -293,7 +293,7 @@ class Unet(object):
             weight_map = tf.multiply(flat_labels, class_weights) + tf.multiply(flat_prediction, class_weights)
             loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
             loss_map = tf.tile(tf.expand_dims(loss_map, 1), [1, self.n_class])
-            # both are npixel x n_class
+            # both npixel x n_class
 
             weighted_loss = tf.multiply(loss_map, weight_map)
             loss_sum_per_class = tf.reduce_sum(weighted_loss, axis=0)
@@ -373,7 +373,7 @@ class Trainer(object):
     """
 
     prediction_path = "prediction"
-    verification_batch_size = 4
+    verification_batch_size = 8
 
     def __init__(self, net, batch_size=1, optimizer="momentum", opt_kwargs={}):
         self.net = net
@@ -384,7 +384,8 @@ class Trainer(object):
     def _get_optimizer(self, training_iters, global_step):
         if self.optimizer == "momentum":
             learning_rate = self.opt_kwargs.pop("learning_rate", 0.2)
-            decay_rate = self.opt_kwargs.pop("decay_rate", 0.95)
+            # decay_rate = self.opt_kwargs.pop("decay_rate", 0.95)
+            decay_rate = self.opt_kwargs.pop("decay_rate", 0.80)
             momentum = self.opt_kwargs.pop("momentum", 0.2)
 
             self.learning_rate_node = tf.train.exponential_decay(learning_rate=learning_rate,

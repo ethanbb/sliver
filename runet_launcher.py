@@ -22,7 +22,8 @@ if __name__ == '__main__':
     npy_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data_notoken/'
 
 
-    generator = CTScanTrainDataProvider(npy_folder, weighting=(0.5, 0.2))
+    generator = CTScanTrainDataProvider(npy_folder, weighting=(0.6, 0.3))
+    val_generator = CTScanTrainDataProvider(npy_folder, weighting=(1, 0))
     batch_size = 10
 
     net = runet.RUnet(batch_size=batch_size,
@@ -31,12 +32,12 @@ if __name__ == '__main__':
                       n_class=generator.n_class,
                       layers=3,
                       features_root=16,
-                      cost="avg_class_ce_symmetric",
-                      cost_kwargs={"class_weights": [0, 1, 5]})
+                      cost="avg_class_ce",
+                      cost_kwargs={"class_weights": [1, 10, 25]})
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
-                           opt_kwargs=dict(momentum=0.9, learning_rate=0.05))
-    path = trainer.train(generator, "./runet_trained",
+                           opt_kwargs=dict(momentum=0, learning_rate=0.05))
+    path = trainer.train(generator, val_generator, "./runet_trained",
                          training_iters=training_iters,
                          epochs=epochs,
                          dropout=dropout,

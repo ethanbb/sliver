@@ -266,6 +266,7 @@ class Unet(object):
         elif cost_name == "avg_class_ce":
             class_weights = cost_kwargs.pop("class_weights", np.ones(self.n_class))
             class_weights = tf.constant(np.array(class_weights, dtype=np.float32))
+            class_weights = tf.Print(class_weights, [class_weights], 'Class weigihts:')
 
             weight_map = tf.multiply(flat_labels, class_weights)
             loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
@@ -274,14 +275,18 @@ class Unet(object):
 
             weighted_loss = tf.multiply(loss_map, weight_map)
             loss_sum_per_class = tf.reduce_sum(weighted_loss, axis=0)
+            loss_sum_per_class = tf.Print(loss_sum_per_class, [loss_sum_per_class], 'Sum of loss per class:')
 
             px_per_class = tf.reduce_sum(flat_labels, axis=0)
+            px_per_class = tf.Print(px_per_class, [px_per_class], 'Pixels per class:')
             include_class = tf.not_equal(px_per_class, 0)
             loss_sum_per_class_valid = tf.boolean_mask(loss_sum_per_class, include_class)
             px_per_class_valid = tf.boolean_mask(px_per_class, include_class)
 
             loss_per_class = tf.divide(loss_sum_per_class_valid, px_per_class_valid)
+            loss_per_class = tf.Print(loss_per_class, [loss_per_class], 'Mean loss per class:')
             loss = tf.reduce_mean(loss_per_class)
+            loss = tf.Print(loss, [loss], "Loss:")
 
         elif cost_name == "avg_class_ce_symmetric":
             prediction = pixel_wise_softmax_2(logits)
@@ -377,7 +382,7 @@ class Trainer(object):
 
     def __init__(self, net, batch_size=1, optimizer="momentum", opt_kwargs={}):
         self.net = net
-        if hasattr(self.net, 'lstm_variables'):
+        if hasattr(self.net, 'batch_size'):
             self.verification_batch_size = self.net.batch_size
         self.batch_size = batch_size
         self.optimizer = optimizer

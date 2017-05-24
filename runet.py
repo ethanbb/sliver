@@ -32,66 +32,26 @@ class RUnet(unet.Unet):
         self.keep_prob = tf.placeholder(tf.float32)  # dropout keep probability
 
         # set up Unet
-        feature_maps, self._unet_logits, self.unet_variables, self.offset = create_conv_net(
+        feature_maps, _, unet_variables, self.offset = create_conv_net(
             self.x, self.keep_prob, channels, n_class, **kwargs)
-
-        self.cost_fn = cost
-        self.cost_kwargs = cost_kwargs
 
         #  batch dimension of feature_maps becomes time points in LSTM
         lstm_input = tf.unstack(feature_maps)
         lstm_input = [tf.expand_dims(x, 0) for x in lstm_input]
-        self._lstm_logits, self.lstm_variables = create_lstm(
-            lstm_input, n_class, n_lstm_layers, **kwargs)
+        logits, lstm_variables = create_lstm(lstm_input, n_class, n_lstm_layers, **kwargs)
 
-        # This property is meant to be settable
-        self.use_lstm = True
-
-    @property
-    def _logits(self):
-        return self._lstm_logits if self.use_lstm else self._unet_logits
-
-    @property
-    def variables(self):
-        if self.use_lstm:
-            return self.lstm_variables + self.unet_variables
-        else:
-            return self.unet_variables
-
-    @property
-    def cost(self):
-        return self._get_cost(self._logits, self.cost_fn, self.cost_kwargs)
-
-    @property
-    def liver_dice(self):
-        return -self._get_cost(self._logits, 'liver_dice')
-
-    @property
-    def tumor_dice(self):
-        return -self._get_cost(self._logits, 'tumor_dice')
-
-    @property
-    def gradients_node(self):
-        return tf.gradients(self.cost, self.variables)
-
-    @property
-    def cross_entropy(self):
-        return tf.reduce_mean(cross_entropy(
+        self.cost = self._get_cost(logits, cost, cost_kwargs)
+        self.variables = unet_variables + lstm_variables
+        self.liver_dice = -self._get_cost(logits, 'liver_dice')
+        self.tumor_dice = -self._get_cost(logits, 'tumor_dice')
+        self.gradients_node = tf.gradients(self.cost, self.variables)
+        self.cross_entropy = tf.reduce_mean(cross_entropy(
             tf.reshape(self.y, [-1, self.n_class]),
-            tf.reshape(pixel_wise_softmax_2(self._logits), [-1, self.n_class])
+            tf.reshape(pixel_wise_softmax_2(logits), [-1, self.n_class])
             ))
-
-    @property
-    def predicter(self):
-        return pixel_wise_softmax_2(self._logits)
-
-    @property
-    def correct_pred(self):
-        return tf.equal(tf.argmax(self.predicter, 3), tf.argmax(self.y, 3))
-
-    @property
-    def accuracy(self):
-        return tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
+        self.predicter = pixel_wise_softmax_2(logits)
+        self.correct_pred = tf.equal(tf.argmax(self.predicter, 3), tf.argmax(self.y, 3))
+        self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
 
 
 def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):

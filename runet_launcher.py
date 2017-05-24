@@ -31,9 +31,8 @@ if __name__ == '__main__':
                       n_class=generator.n_class,
                       layers=3,
                       features_root=16,
-                      cost="avg_class_ce",
+                      cost="avg_class_ce_symmetric",
                       cost_kwargs={"class_weights": [0, 1, 5]})
-    net.use_lstm = True
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
                            opt_kwargs=dict(momentum=0.9, learning_rate=0.05))

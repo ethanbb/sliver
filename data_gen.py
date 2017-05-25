@@ -1,5 +1,4 @@
 from __future__ import print_function, division, absolute_import, unicode_literals
-from elastic_deformation import elastic_transform
 
 import numpy as np
 import random
@@ -26,7 +25,7 @@ class CTScanTestDataProvider(object):
         self.volume_index = 27
         self.volume_depth = -1
         self.frame_index = -2
-        self.num_samples = 40  # 130 is full
+        self.num_samples = 130
         self.npy_folder = npy_folder
         self.data = None
         self.label = None
@@ -65,6 +64,15 @@ class CTScanTestDataProvider(object):
             data /= np.amax(data)
         return data
 
+    def _post_process(self, data, labels):
+        """
+        Post processing hook that can be used for data augmentation
+
+        :param data: the data array
+        :param labels: the label array
+        """
+        return data, labels
+
     def __call__(self, n=4):
         train_data, labels = self._load_data_and_label()
         if (not np.any(train_data)):
@@ -79,9 +87,11 @@ class CTScanTestDataProvider(object):
         Y[0] = labels
         for i in range(1, n):
             train_data, labels = self._load_data_and_label()
+            if (not np.any(train_data)):
+                return False, False
             X[i] = train_data
             Y[i] = labels
-
+        # print(self.volume_index, self.frame_index)
         return X, Y
 
     def _cycle_frame(self):
@@ -165,9 +175,7 @@ class CTScanTrainDataProvider(object):
         train_data = self._process_data(data)
         labels = self._process_labels(label)
 
-        # aug_data, aug_labels = self._augment_data(train_data, labels)
-
-        return train_data.reshape(1, ny, nx, self.channels), labels.reshape(1, ny, nx, self.n_class)  #, aug_data.reshape(1, ny, nx, self.channels), aug_labels.reshape(1, ny, nx, self.n_class)
+        return train_data.reshape(1, ny, nx, self.channels), labels.reshape(1, ny, nx, self.n_class)
 
     def _process_labels(self, label):
         nx = label.shape[1]
@@ -187,23 +195,20 @@ class CTScanTrainDataProvider(object):
             data /= np.amax(data)
         return data
 
-    def _augment_data(self, data, labels):
+    def _post_process(self, data, labels):
         """
         Post processing hook that can be used for data augmentation
 
         :param data: the data array
         :param labels: the label array
         """
-        aug_data, aug_labels = elastic_transform(data, labels,
-                                                 data.shape[1] * 2,
-                                                 data.shape[1] * 0.08)
-        return aug_data, aug_labels
+        return data, labels
 
     def __call__(self, n):
         if self.volume_index == -1:
             self.data, self.label = self._next_volume()
 
-        num_frames = len(self.unused_frames)  #* 2  # data augmentation doubles frame number
+        num_frames = len(self.unused_frames)
         if n > num_frames:
             warnings.warn('Batch size is larger than volume; padding with zeros')
             X, Y = self(num_frames)
@@ -213,7 +218,6 @@ class CTScanTrainDataProvider(object):
             X = np.concatenate((X, np.zeros((n - num_frames, nx, ny, self.channels))))
             Y = np.concatenate((Y, np.zeros((n - num_frames, nx, ny, self.n_class))))
             Y[num_frames:, :, :, 0] = 1
-            import pdb; pdb.set_trace()
 
             return X, Y
 
@@ -247,32 +251,18 @@ class CTScanTrainDataProvider(object):
         self.unused_frames[slice_range] = False
 
         train_data, labels = self._load_data_and_label()
-        # train_data, labels, aug_data, aug_labels = self._load_data_and_label()
         nx = train_data.shape[1]
         ny = train_data.shape[2]
 
         X = np.zeros((n, nx, ny, self.channels))
         Y = np.zeros((n, nx, ny, self.n_class))
-        # X = np.zeros((2*n, nx, ny, self.channels))
-        # Y = np.zeros((2*n, nx, ny, self.n_class))
 
         X[0] = train_data
         Y[0] = labels
-        # X[1] = aug_data
-        # Y[1] = aug_labels
-
         for i in range(1, n):
             train_data, labels = self._load_data_and_label()
-            # train_data, labels, aug_data, aug_labels = self._load_data_and_label()
-
-            if (not np.any(train_data)):
-                return False, False
             X[i] = train_data
             Y[i] = labels
-            # X[2*i] = train_data
-            # Y[2*i] = labels
-            # X[2*i+1] = aug_data
-            # Y[2*i+1] = aug_labels
 
         return X, Y
 

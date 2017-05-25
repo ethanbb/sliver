@@ -1,4 +1,5 @@
 from __future__ import print_function, division, absolute_import, unicode_literals
+from elastic_deformation import elastic_transform
 
 import numpy as np
 import random
@@ -195,14 +196,25 @@ class CTScanTrainDataProvider(object):
             data /= np.amax(data)
         return data
 
-    def _post_process(self, data, labels):
+    # def _post_process(self, data, labels):
+    #     """
+    #     Post processing hook that can be used for data augmentation
+    #
+    #     :param data: the data array
+    #     :param labels: the label array
+    #     """
+    #     return data, labels
+    def _augment_data(self, data, labels):
         """
-        Post processing hook that can be used for data augmentation
+        Post processing hook to perform elastic transforms
 
         :param data: the data array
         :param labels: the label array
         """
-        return data, labels
+        aug_data, aug_labels = elastic_transform(data, labels,
+                                                 data.shape[1] * 2,
+                                                 data.shape[1] * 0.08)
+        return aug_data, aug_labels
 
     def __call__(self, n):
         if self.volume_index == -1:
@@ -254,15 +266,28 @@ class CTScanTrainDataProvider(object):
         nx = train_data.shape[1]
         ny = train_data.shape[2]
 
+        # X = np.zeros((n, nx, ny, self.channels))
+        # Y = np.zeros((n, nx, ny, self.n_class))
         X = np.zeros((n, nx, ny, self.channels))
         Y = np.zeros((n, nx, ny, self.n_class))
 
         X[0] = train_data
         Y[0] = labels
-        for i in range(1, n):
+
+        # aug_data, aug_labels = self._augment_data(train_data, labels)
+        # X[1] = aug_data
+        # Y[1] = aug_labels
+        m = int(n / 2)
+        for i in range(1, m):
             train_data, labels = self._load_data_and_label()
-            X[i] = train_data
-            Y[i] = labels
+            # X[i] = train_data
+            # Y[i] = labels
+
+            aug_data, aug_labels = self._augment_data(train_data, labels)
+            X[2*i] = train_data
+            Y[2*i] = labels
+            X[2*i+1] = aug_data
+            Y[2*i+1] = aug_labels
 
         return X, Y
 

@@ -4,13 +4,6 @@ import runet
 from tf_unet_1 import util
 from data_gen import CTScanTrainDataProvider
 
-# 2017-05-17 21:45:20,269 Epoch 9, Average loss: -1.0588, learning rate: 0.1260
-# 2017-05-17 21:45:28,383 Verification error= 11.1%, loss= -1.0417
-# 2017-05-17 21:45:42,144 Optimization Finished!
-# I tensorflow/core/common_runtime/gpu/gpu_device.cc:975] Creating TensorFlow device (/gpu:0) -> (device: 0, name: Tesla K80, pci bus id: 0000:8a:00.0)
-# I tensorflow/core/common_runtime/gpu/gpu_device.cc:975] Creating TensorFlow device (/gpu:1) -> (device: 1, name: Tesla K80, pci bus id: 0000:8b:00.0)
-# 2017-05-17 21:45:55,574 Model restored from file: ./runet_trained/model.cpkt
-# Testing error rate: 7.53%
 
 if __name__ == '__main__':
     training_iters = 20
@@ -24,7 +17,7 @@ if __name__ == '__main__':
 
     generator = CTScanTrainDataProvider(npy_folder, weighting=(0.6, 0.3))
     val_generator = CTScanTrainDataProvider(npy_folder, weighting=(1, 0))
-    batch_size = 10
+    batch_size = 8
 
     net = runet.RUnet(batch_size=batch_size,
                       n_lstm_layers=1,
@@ -44,7 +37,7 @@ if __name__ == '__main__':
                          display_step=display_step,
                          restore=restore)
 
-    x_test, y_test = generator(4)
+    x_test, y_test = val_generator(batch_size)
     prediction = net.predict(path, x_test)
 
     print("Testing error rate: {:.2f}%".format(unet.error_rate(prediction, util.crop_to_shape(y_test, prediction.shape))))

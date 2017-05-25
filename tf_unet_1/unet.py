@@ -491,7 +491,7 @@ class Trainer(object):
                 total_loss = 0
                 for step in range((epoch*training_iters), ((epoch+1)*training_iters)):
                     batch_x, batch_y = data_provider(self.batch_size)
-
+                    # batch_x, batch_y = data_provider(self.batch_size / 2)
                     # Run optimization op (backprop)
                     _, loss, lr, gradients = sess.run((self.optimizer, self.net.cost, self.learning_rate_node, self.net.gradients_node),
                                                       feed_dict={self.net.x: batch_x,

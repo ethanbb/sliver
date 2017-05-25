@@ -13,15 +13,16 @@ def elastic_transform(image, labels, alpha, sigma, random_state=None):
            https://gist.github.com/chsasank/4d8f68caf01f041a6453e67fb30f8f5a
     """
     # assert len(image.shape) == 2
-
-    label0 = labels[..., 0]
-    label1 = labels[..., 1]
-    label2 = labels[..., 2]
+    nx = image.shape[1]
+    ny = image.shape[2]
+    shape = (nx, ny)
+    image = image.reshape(shape)
+    label0 = labels[..., 0].reshape(shape)
+    label1 = labels[..., 1].reshape(shape)
+    label2 = labels[..., 2].reshape(shape)
 
     if random_state is None:
         random_state = np.random.RandomState(None)
-
-    shape = image.shape
 
     dx = gaussian_filter((random_state.rand(*shape) * 2 - 1), sigma, mode="constant", cval=0) * alpha
     dy = gaussian_filter((random_state.rand(*shape) * 2 - 1), sigma, mode="constant", cval=0) * alpha
@@ -34,9 +35,9 @@ def elastic_transform(image, labels, alpha, sigma, random_state=None):
     label1_mapped = map_coordinates(label1, indices, order=1).reshape(shape)
     label2_mapped = map_coordinates(label2, indices, order=1).reshape(shape)
 
-    labels[..., 0] = label0_mapped
-    labels[..., 1] = label1_mapped
-    labels[..., 2] = label2_mapped
+    labels[..., 0] = label0_mapped.reshape(1, nx, ny)
+    labels[..., 1] = label1_mapped.reshape(1, nx, ny)
+    labels[..., 2] = label2_mapped.reshape(1, nx, ny)
 
     # print('Performing elastic deformation')
-    return image_mapped, labels
+    return image_mapped.reshape(1, nx, ny, 1), labels

@@ -78,7 +78,6 @@ def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):
         with vs.variable_scope('lstm_layer%d' % k_layer) as scope:
             (ys, state_fw, state_bw) = cr.static_bidirectional_rnn(
                 fw_cell, bw_cell, in_list, dtype=tf.float32, scope=scope)
-            # keep track of variables
             with vs.variable_scope('fw') as fw_scope:
                 fw_scope.reuse_variables()
                 variables.append(vs.get_variable(crc._BIAS_VARIABLE_NAME))

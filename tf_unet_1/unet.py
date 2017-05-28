@@ -62,6 +62,8 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
 
     weights = []
     biases = []
+    dweights = []
+    dbiases = []
     convs = []
     pools = OrderedDict()
     deconv = OrderedDict()
@@ -122,6 +124,8 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         in_node = tf.nn.relu(conv2 + b2)
         up_h_convs[layer] = in_node
 
+        dweights.append(wd)
+        dbiases.append(bd)
         weights.append((w1, w2))
         biases.append((b1, b2))
         convs.append((conv1, conv2))
@@ -162,6 +166,10 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         variables.append(b1)
         variables.append(b2)
 
+    variables += dweights
+    variables += dbiases
+    variables.append(weight)
+    variables.append(bias)
 
     return output_map, variables, int(in_size - size)
 
@@ -201,7 +209,7 @@ class Unet(object):
         self.predicter = pixel_wise_softmax_2(logits)
         self.correct_pred = tf.equal(tf.argmax(self.predicter, 3), tf.argmax(self.y, 3))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
-        self.saver = tf.train.Saver()
+        self.saver = tf.train.Saver(var_list=self.variables)
 
     def _get_cost(self, logits, cost_name, cost_kwargs={}):
         """
@@ -459,7 +467,9 @@ class Trainer(object):
 
         return init
 
-    def train(self, data_provider, val_data_provider, output_path, training_iters=10, epochs=100, dropout=0.75, display_step=1, restore=False, write_graph=False):
+    def train(self, data_provider, val_data_provider, output_path,
+              prediction_path=None, training_iters=10, epochs=100,
+              dropout=0.75, display_step=1, restore=False, write_graph=False):
         """
         Lauches the training process
 
@@ -475,6 +485,9 @@ class Trainer(object):
         save_path = os.path.join(output_path, "model.cpkt")
         if epochs == 0:
             return save_path
+
+        if prediction_path is not None:
+            self.prediction_path = prediction_path
 
         init = self._initialize(training_iters, output_path, restore)
 

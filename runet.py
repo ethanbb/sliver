@@ -32,7 +32,7 @@ class RUnet(unet.Unet):
         self.keep_prob = tf.placeholder(tf.float32)  # dropout keep probability
 
         # set up Unet
-        feature_maps, _, unet_variables, self.offset = create_conv_net(
+        feature_maps, unet_variables, self.offset = create_conv_net(
             self.x, self.keep_prob, channels, n_class, **kwargs)
 
         #  batch dimension of feature_maps becomes time points in LSTM
@@ -52,7 +52,7 @@ class RUnet(unet.Unet):
         self.predicter = pixel_wise_softmax_2(logits)
         self.correct_pred = tf.equal(tf.argmax(self.predicter, 3), tf.argmax(self.y, 3))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
-        self.saver = tf.train.Saver()
+        self.saver = tf.train.Saver(var_list=self.variables)
 
 
 def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):
@@ -96,6 +96,8 @@ def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):
     bias = bias_variable([n_class])
     conv = conv2d(out_tensor, weight, tf.constant(1.0))
     output_map = tf.nn.relu(conv + bias)
+    variables.append(weight)
+    variables.append(bias)
 
     return output_map, variables
 
@@ -133,6 +135,8 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
 
     weights = []
     biases = []
+    dweights = []
+    dbiases = []
     convs = []
     pools = OrderedDict()
     deconv = OrderedDict()
@@ -198,6 +202,8 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         in_node = tf.nn.relu(conv2 + b2)
         up_h_convs[layer] = in_node
 
+        dweights.append(wd)
+        dbiases.append(bd)
         weights.append((w1, w2))
         biases.append((b1, b2))
         convs.append((conv1, conv2))
@@ -206,13 +212,6 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
 
     # output before mapping to n_class for connection to LSTM
     output_raw = in_node
-
-    # Output Map
-    weight = weight_variable([1, 1, features_root, n_class], stddev)
-    bias = bias_variable([n_class])
-    conv = conv2d(in_node, weight, tf.constant(1.0))
-    output_map = tf.nn.relu(conv + bias)
-    up_h_convs["out"] = output_map
 
     if summaries:
         for i, (c1, c2) in enumerate(convs):
@@ -240,4 +239,7 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         variables.append(b1)
         variables.append(b2)
 
-    return output_raw, output_map, variables, int(in_size - size)
+    variables += dweights
+    variables += dbiases
+
+    return output_raw, variables, int(in_size - size)

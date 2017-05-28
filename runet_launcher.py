@@ -28,34 +28,37 @@ if __name__ == '__main__':
                       layers=3,
                       features_root=16,
                       cost="avg_class_ce",
-                      cost_kwargs={"class_weights": [1, 6, 9]})
+                      cost_kwargs={"class_weights": [1, 6, 7]})
 
-    trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum", prediction_path="prediction/stage1",
-                            opt_kwargs=dict(momentum=0, learning_rate=0.05))
+    trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
+                           opt_kwargs=dict(momentum=0, learning_rate=0.05))
     trainer.train(generator1, val_generator, "./runet_trained",
-                   training_iters=training_iters,
-                   epochs=epochs1,
-                   dropout=dropout,
-                   display_step=display_step,
-                   restore=False)
+                  prediction_path="prediction/stage1",
+                  training_iters=training_iters,
+                  epochs=epochs1,
+                  dropout=dropout,
+                  display_step=display_step,
+                  restore=False)
 
-    net.set_cost("avg_class_ce", {"class_weights": [1, 10, 15]})
+    net.set_cost("avg_class_ce", {"class_weights": [1, 8, 12]})
 
     trainer.train(generator2, val_generator, "./runet_trained",
+                  prediction_path="prediction/stage2",
                   training_iters=training_iters,
                   epochs=epochs2,
                   dropout=dropout,
                   display_step=display_step,
                   restore=True)
 
-    net.set_cost("avg_class_ce", {"class_weights": [1, 15, 25]})
+    net.set_cost("avg_class_ce", {"class_weights": [1, 12, 20]})
 
     path = trainer.train(generator3, val_generator, "./runet_trained",
-                          training_iters=training_iters,
-                          epochs=epochs3,
-                          dropout=dropout,
-                          display_step=display_step,
-                          restore=True)
+                         prediction_path="prediction/stage3",
+                         training_iters=training_iters,
+                         epochs=epochs3,
+                         dropout=dropout,
+                         display_step=display_step,
+                         restore=True)
 
     x_test, y_test = val_generator(batch_size)
     prediction = net.predict(path, x_test)

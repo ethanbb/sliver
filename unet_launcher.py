@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     train_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data_notoken/'
     test_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 2/npy_data_notoken/'
-    generator = CTScanTrainDataProvider(train_folder, weighting=(0.5, 0.2))
+    generator = CTScanTrainDataProvider(train_folder, weighting=(0.5, 0.3), use_aug=True)
     val_generator = CTScanTrainDataProvider(train_folder, weighting=(1, 0))
     batch_size = 17
 
@@ -31,10 +31,10 @@ if __name__ == '__main__':
                     layers=3,
                     features_root=16,
                     cost="avg_class_ce",
-                    cost_kwargs={"class_weights": [1, 5, 5]})
+                    cost_kwargs={"class_weights": [1, 15, 25]})
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
-                           opt_kwargs=dict(momentum=0.2, learning_rate=0.2))
+                           opt_kwargs=dict(momentum=0, learning_rate=0.01))
 
     path = trainer.train(generator, val_generator, "./unet_trained",
                          training_iters=training_iters,

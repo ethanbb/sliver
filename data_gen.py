@@ -149,9 +149,10 @@ class CTScanTrainDataProvider(object):
     channels = 1
     n_class = 3
 
-    def __init__(self, npy_folder, weighting=None, a_min=None, a_max=None):
+    def __init__(self, npy_folder, weighting=None, a_min=None, a_max=None, use_aug=False):
         self.a_min = a_min if a_min is not None else -np.inf
         self.a_max = a_max if a_min is not None else np.inf
+        self.use_aug = use_aug
         self.volume_index = -1
         # boolean arrays of what each frame contains
         self.unused_frames = []
@@ -274,21 +275,14 @@ class CTScanTrainDataProvider(object):
         X[0] = train_data
         Y[0] = labels
 
-        # aug_data, aug_labels = self._augment_data(train_data, labels)
-        # X[1] = aug_data
-        # Y[1] = aug_labels
-        m = int(n / 2)
-        for i in range(1, m):
-            train_data, labels = self._load_data_and_label()
-            # X[i] = train_data
-            # Y[i] = labels
+        for i in range(1, n):
+            if i % 2 == 1 and self.use_aug:
+                train_data, labels = self._augment_data(train_data, labels)
+            else:
+                train_data, labels = self._load_data_and_label()
 
-            aug_data, aug_labels = self._augment_data(train_data, labels)
-            X[2*i] = train_data
-            Y[2*i] = labels
-            X[2*i+1] = aug_data
-            Y[2*i+1] = aug_labels
-
+            X[i] = train_data
+            Y[i] = labels
         return X, Y
 
     def _next_data(self):

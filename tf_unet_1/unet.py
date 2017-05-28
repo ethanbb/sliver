@@ -53,7 +53,7 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
                                                                                                            features=features_root,
                                                                                                            filter_size=filter_size,
                                                                                                            pool_size=pool_size))
-    # placeholder for the input image
+    # Placeholder for the input image
     nx = tf.shape(x)[1]
     ny = tf.shape(x)[2]
     x_image = tf.reshape(x, tf.stack([-1,nx,ny,channels]))
@@ -187,6 +187,7 @@ class Unet(object):
         self.keep_prob = tf.placeholder(tf.float32)  # dropout (keep probability)
 
         logits, self.variables, self.offset = create_conv_net(self.x, self.keep_prob, channels, n_class, **kwargs)
+        self.logits = logits
 
         self.cost = self._get_cost(logits, cost, cost_kwargs)
         self.liver_dice = -self._get_cost(logits, 'liver_dice')
@@ -200,6 +201,7 @@ class Unet(object):
         self.predicter = pixel_wise_softmax_2(logits)
         self.correct_pred = tf.equal(tf.argmax(self.predicter, 3), tf.argmax(self.y, 3))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
+        self.saver = tf.train.Saver()
 
     def _get_cost(self, logits, cost_name, cost_kwargs={}):
         """
@@ -212,10 +214,9 @@ class Unet(object):
         flat_logits = tf.reshape(logits, [-1, self.n_class])
         flat_labels = tf.reshape(self.y, [-1, self.n_class])
         if cost_name == "cross_entropy":
-            class_weights = cost_kwargs.pop("class_weights", None)
 
-            if class_weights is not None:
-                class_weights = tf.constant(np.array(class_weights, dtype=np.float32))
+            if "class_weights" in cost_kwargs:
+                class_weights = tf.constant(np.array(cost_kwargs["class_weights"], dtype=np.float32))
 
                 weight_map = tf.multiply(flat_labels, class_weights)
                 weight_map = tf.reduce_sum(weight_map, axis=1)
@@ -228,12 +229,12 @@ class Unet(object):
             else:
                 loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits,
                                                                               labels=flat_labels))
-        elif cost_name == "dice_coefficient":
-            eps = 1e-5
-            prediction = pixel_wise_softmax_2(logits)
-            intersection = tf.reduce_sum(prediction * self.y, axis=[0, 1, 2])
-            union = eps + tf.reduce_sum(prediction, axis=[0, 1, 2]) + tf.reduce_sum(self.y, axis=[0, 1, 2]) - intersection
-            loss = tf.reduce_sum(-(2 * intersection / (union)))
+        # elif cost_name == "dice_coefficient":
+        #     eps = 1e-5
+        #     prediction = pixel_wise_softmax_2(logits)
+        #     intersection = tf.reduce_sum(prediction * self.y, axis=[0, 1, 2])
+        #     union = eps + tf.reduce_sum(prediction, axis=[0, 1, 2]) + tf.reduce_sum(self.y, axis=[0, 1, 2]) - intersection
+        #     loss = tf.reduce_sum(-(2 * intersection / (union)))
 
         elif cost_name == "liver_dice":
             eps = 1e-5
@@ -264,14 +265,17 @@ class Unet(object):
             loss = -(2. * intersection / (size_pred + size_gt + eps))
 
         elif cost_name == "avg_class_ce":
-            class_weights = cost_kwargs.pop("class_weights", np.ones(self.n_class))
+            if "class_weights" in cost_kwargs:
+                class_weights = cost_kwargs["class_weights"]
+            else:
+                class_weights = np.ones(self.n_class)
             class_weights = tf.constant(np.array(class_weights, dtype=np.float32))
             # class_weights = tf.Print(class_weights, [class_weights], 'Class weigihts:')
 
             weight_map = tf.multiply(flat_labels, class_weights)
             loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
             loss_map = tf.tile(tf.expand_dims(loss_map, 1), [1, self.n_class])
-            # both npixel x n_class
+            # both are npixel x n_class
 
             weighted_loss = tf.multiply(loss_map, weight_map)
             loss_sum_per_class = tf.reduce_sum(weighted_loss, axis=0)
@@ -292,18 +296,21 @@ class Unet(object):
             prediction = pixel_wise_softmax_2(logits)
             flat_prediction = tf.reshape(prediction, [-1, self.n_class])
 
-            class_weights = cost_kwargs.pop("class_weights", np.ones(self.n_class))
+            if "class_weights" in cost_kwargs:
+                class_weights = cost_kwargs["class_weights"]
+            else:
+                class_weights = np.ones(self.n_class)
             class_weights = tf.constant(np.array(class_weights, dtype=np.float32))
 
-            weight_map = tf.multiply(flat_labels, class_weights) + tf.multiply(flat_prediction, class_weights)
+            weight_map = tf.multiply(flat_labels, class_weights) + 0.1*tf.multiply(flat_prediction, class_weights)
             loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=flat_logits, labels=flat_labels)
             loss_map = tf.tile(tf.expand_dims(loss_map, 1), [1, self.n_class])
-            # both npixel x n_class
+            # both are npixel x n_class
 
             weighted_loss = tf.multiply(loss_map, weight_map)
             loss_sum_per_class = tf.reduce_sum(weighted_loss, axis=0)
 
-            px_per_class = tf.reduce_sum(flat_labels, axis=0) + tf.reduce_sum(flat_prediction, axis=0)
+            px_per_class = tf.reduce_sum(flat_labels, axis=0) + 0.1*tf.reduce_sum(flat_prediction, axis=0)
             include_class = tf.not_equal(px_per_class, 0)
             loss_sum_per_class_valid = tf.boolean_mask(loss_sum_per_class, include_class)
             px_per_class_valid = tf.boolean_mask(px_per_class, include_class)
@@ -314,12 +321,19 @@ class Unet(object):
         else:
             raise ValueError("Unknown cost function: "%cost_name)
 
-        regularizer = cost_kwargs.pop("regularizer", None)
-        if regularizer is not None:
+        if "regularizer" in cost_kwargs:
+            regularizer = cost_kwargs["regularizer"]
             regularizers = sum([tf.nn.l2_loss(variable) for variable in self.variables])
             loss += (regularizer * regularizers)
 
         return loss
+
+    def set_cost(self, cost, cost_kwargs):
+        """
+        change the cost function
+        """
+        self.cost = self._get_cost(self.logits, cost, cost_kwargs)
+        self.gradients_node = tf.gradients(self.cost, self.variables)
 
     def predict(self, model_path, x_test):
         """
@@ -351,8 +365,7 @@ class Unet(object):
         :param model_path: path to file system location
         """
 
-        saver = tf.train.Saver()
-        save_path = saver.save(sess, model_path)
+        save_path = self.saver.save(sess, model_path)
         return save_path
 
     def restore(self, sess, model_path):
@@ -363,8 +376,7 @@ class Unet(object):
         :param model_path: path to file system checkpoint location
         """
 
-        saver = tf.train.Saver()
-        saver.restore(sess, model_path)
+        self.saver.restore(sess, model_path)
         logging.info("Model restored from file: %s" % model_path)
 
 class Trainer(object):
@@ -377,23 +389,22 @@ class Trainer(object):
     :param opt_kwargs: (optional) kwargs passed to the learning rate (momentum opt) and to the optimizer
     """
 
-    prediction_path = "prediction"
-    verification_batch_size = 8
+    verification_batch_size = 4
 
-    def __init__(self, net, batch_size=1, optimizer="momentum", opt_kwargs={}):
+    def __init__(self, net, batch_size=1, optimizer="momentum", prediction_path="prediction", opt_kwargs={}):
         self.net = net
         if hasattr(self.net, 'batch_size'):
             self.verification_batch_size = self.net.batch_size
         self.batch_size = batch_size
-        self.optimizer = optimizer
+        self.optimizer_type = optimizer
         self.opt_kwargs = opt_kwargs
+        self.prediction_path = prediction_path
 
     def _get_optimizer(self, training_iters, global_step):
-        if self.optimizer == "momentum":
-            learning_rate = self.opt_kwargs.pop("learning_rate", 0.2)
-            # decay_rate = self.opt_kwargs.pop("decay_rate", 0.95)
-            decay_rate = self.opt_kwargs.pop("decay_rate", 0.80)
-            momentum = self.opt_kwargs.pop("momentum", 0.2)
+        if self.optimizer_type == "momentum":
+            learning_rate = self.opt_kwargs.get("learning_rate", 0.2)
+            decay_rate = self.opt_kwargs.get("decay_rate", 0.95)
+            momentum = self.opt_kwargs.get("momentum", 0.2)
 
             self.learning_rate_node = tf.train.exponential_decay(learning_rate=learning_rate,
                                                         global_step=global_step,
@@ -401,16 +412,13 @@ class Trainer(object):
                                                         decay_rate=decay_rate,
                                                         staircase=True)
 
-            optimizer = tf.train.MomentumOptimizer(learning_rate=self.learning_rate_node, momentum=momentum,
-                                                   **self.opt_kwargs).minimize(self.net.cost,
-                                                                                global_step=global_step)
-        elif self.optimizer == "adam":
-            learning_rate = self.opt_kwargs.pop("learning_rate", 0.001)
+            optimizer = tf.train.MomentumOptimizer(learning_rate=self.learning_rate_node, momentum=momentum).minimize(self.net.cost, global_step=global_step)
+
+        elif self.optimizer_type == "adam":
+            learning_rate = self.opt_kwargs.get("learning_rate", 0.001)
             self.learning_rate_node = tf.Variable(learning_rate)
 
-            optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_node,
-                                               **self.opt_kwargs).minimize(self.net.cost,
-                                                                     global_step=global_step)
+            optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_node).minimize(self.net.cost, global_step=global_step)
 
         return optimizer
 
@@ -491,7 +499,7 @@ class Trainer(object):
                 total_loss = 0
                 for step in range((epoch*training_iters), ((epoch+1)*training_iters)):
                     batch_x, batch_y = data_provider(self.batch_size)
-                    # batch_x, batch_y = data_provider(self.batch_size / 2)
+
                     # Run optimization op (backprop)
                     _, loss, lr, gradients = sess.run((self.optimizer, self.net.cost, self.learning_rate_node, self.net.gradients_node),
                                                       feed_dict={self.net.x: batch_x,

@@ -39,7 +39,7 @@ class RUnet(unet.Unet):
         lstm_input = tf.unstack(feature_maps)
         lstm_input = [tf.expand_dims(x, 0) for x in lstm_input]
         logits, lstm_variables = create_lstm(lstm_input, n_class, n_lstm_layers, **kwargs)
-
+        self.logits = logits
         self.cost = self._get_cost(logits, cost, cost_kwargs)
         self.variables = unet_variables + lstm_variables
         self.liver_dice = -self._get_cost(logits, 'liver_dice')
@@ -52,6 +52,7 @@ class RUnet(unet.Unet):
         self.predicter = pixel_wise_softmax_2(logits)
         self.correct_pred = tf.equal(tf.argmax(self.predicter, 3), tf.argmax(self.y, 3))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
+        self.saver = tf.train.Saver()
 
 
 def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):

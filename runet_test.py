@@ -40,7 +40,7 @@ def get_performance(net, savedir):
         size_pred = np.count_nonzero(prediction_b)
         size_gt = np.count_nonzero(gt_b)
 
-        liver_dices.append(-(2. * intersection / (size_pred + size_gt + eps)))
+        liver_dices.append(2. * intersection / (size_pred + size_gt + eps))
 
         # tumor dice
         prediction_b = prediction_dense > 1
@@ -50,7 +50,7 @@ def get_performance(net, savedir):
         size_pred = np.count_nonzero(prediction_b)
         size_gt = np.count_nonzero(gt_b)
 
-        liver_dices.append(-(2. * intersection / (size_pred + size_gt + eps)))
+        tumor_dices.append(2. * intersection / (size_pred + size_gt + eps))
 
     mean_acc = np.mean(accuracies)
     mean_ld = np.mean(liver_dices)

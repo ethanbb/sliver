@@ -300,6 +300,38 @@ class Unet(object):
             loss = tf.reduce_mean(loss_per_class)
             # loss = tf.Print(loss, [loss], "Loss:")
 
+        elif cost_name == "avg_class_ce_binary":
+            """Only care whether it's tumor or not"""
+            if "class_weights" in cost_kwargs:
+                class_weights = cost_kwargs["class_weights"]
+            else:
+                class_weights = np.ones(self.n_class - 1)
+            class_weights = tf.constant(np.array(class_weights, dtype=np.float32))
+
+            combined_labels = tf.stack([flat_labels[:, 0] + flat_labels[:, 1], flat_labels[:, 2]], axis=1)
+            combined_logits = tf.stack([tf.log(tf.exp(flat_logits[:, 0]) + tf.exp(flat_logits[:, 1])),
+                                         flat_logits[:, 2]], axis=1)
+
+            weight_map = tf.multiply(combined_labels, class_weights)
+            loss_map = tf.nn.softmax_cross_entropy_with_logits(logits=combined_logits, labels=combined_labels)
+            loss_map = tf.tile(tf.expand_dims(loss_map, 1), [1, self.n_class - 1])
+            # both are npixel x n_class
+
+            weighted_loss = tf.multiply(loss_map, weight_map)
+            loss_sum_per_class = tf.reduce_sum(weighted_loss, axis=0)
+            # loss_sum_per_class = tf.Print(loss_sum_per_class, [loss_sum_per_class], 'Sum of loss per class:')
+
+            px_per_class = tf.reduce_sum(combined_labels, axis=0)
+            # px_per_class = tf.Print(px_per_class, [px_per_class], 'Pixels per class:')
+            include_class = tf.not_equal(px_per_class, 0)
+            loss_sum_per_class_valid = tf.boolean_mask(loss_sum_per_class, include_class)
+            px_per_class_valid = tf.boolean_mask(px_per_class, include_class)
+
+            loss_per_class = tf.divide(loss_sum_per_class_valid, px_per_class_valid)
+            # loss_per_class = tf.Print(loss_per_class, [loss_per_class], 'Mean loss per class:')
+            loss = tf.reduce_mean(loss_per_class)
+            # loss = tf.Print(loss, [loss], "Loss:")
+
         elif cost_name == "avg_class_ce_symmetric":
             prediction = pixel_wise_softmax_2(logits)
             flat_prediction = tf.reshape(prediction, [-1, self.n_class])
@@ -336,7 +368,7 @@ class Unet(object):
 
         return loss
 
-    def set_cost(self, cost, cost_kwargs):
+    def set_cost(self, cost, cost_kwargs={}):
         """
         change the cost function
         """

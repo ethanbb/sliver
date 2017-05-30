@@ -10,29 +10,33 @@ if __name__ == '__main__':
     epochs1 = 15
     epochs2 = 15
     epochs3 = 15
-    dropout = 0.75  # Dropout, probability to keep units
+    dropout = 1  # Dropout, probability to keep units
     display_step = 2
 
-    npy_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 1/npy_data_notoken/'
+    npy_folder = '/ihome/azhu/cs189/data/liverScans/Training Batch 2/npy_data_notoken/'
 
-    generator1 = CTScanTrainDataProvider(npy_folder, weighting=(1, 0))
-    generator2 = CTScanTrainDataProvider(npy_folder, weighting=(0.5, 0.3))
+    generator1 = CTScanTrainDataProvider(npy_folder, weighting=(0.9, 0.05))
+    generator2 = CTScanTrainDataProvider(npy_folder, weighting=(0.6, 0.2))
     generator3 = CTScanTrainDataProvider(npy_folder)
-    val_generator = CTScanTrainDataProvider(npy_folder, weighting=(1, 0))
-    batch_size = 10
+    val_generator = CTScanTrainDataProvider(npy_folder, weighting=(1, 0), use_aug=False)
+    batch_size = 8
 
     net = runet.RUnet(batch_size=batch_size,
-                      n_lstm_layers=1,
+                      n_lstm_layers=2,
+                      channel_mult=[1.5, 2],
                       channels=generator1.channels,
                       n_class=generator1.n_class,
                       layers=3,
                       features_root=16,
                       cost="avg_class_ce",
-                      cost_kwargs={"class_weights": [1, 6, 7]})
+                      cost_kwargs={})
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
-                           opt_kwargs=dict(momentum=0, learning_rate=0.05))
-    trainer.train(generator1, val_generator, "./runet_trained",
+                           opt_kwargs={"momentum": 0,
+                                       "learning_rate": 0.15,
+                                       "decay_rate": 0.95})
+
+    trainer.train(generator1, val_generator, "./runet_trained/stage1",
                   prediction_path="prediction/stage1",
                   training_iters=training_iters,
                   epochs=epochs1,
@@ -40,9 +44,11 @@ if __name__ == '__main__':
                   display_step=display_step,
                   restore=False)
 
-    net.set_cost("avg_class_ce", {"class_weights": [1, 8, 12]})
+    # net.set_cost("avg_class_ce", {"class_weights": [2, 3, 7]})
+    trainer.opt_kwargs["learning_rate"] = 0.05
+    # trainer.opt_kwargs["momentum"] = 0
 
-    trainer.train(generator2, val_generator, "./runet_trained",
+    trainer.train(generator2, val_generator, "./runet_trained/stage2",
                   prediction_path="prediction/stage2",
                   training_iters=training_iters,
                   epochs=epochs2,
@@ -50,9 +56,10 @@ if __name__ == '__main__':
                   display_step=display_step,
                   restore=True)
 
-    net.set_cost("avg_class_ce", {"class_weights": [1, 12, 20]})
+    # net.set_cost("avg_class_ce", {"class_weights": [1, 1, 9]})
+    trainer.opt_kwargs["learning_rate"] = 0.01
 
-    path = trainer.train(generator3, val_generator, "./runet_trained",
+    path = trainer.train(generator3, val_generator, "./runet_trained/stage3",
                          prediction_path="prediction/stage3",
                          training_iters=training_iters,
                          epochs=epochs3,

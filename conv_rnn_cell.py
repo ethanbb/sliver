@@ -31,7 +31,6 @@ class BasicConvRNNCell(RNNCell):
     Args:
         input_shape: [in_height, in_width, in_channels]
         filter_shape: [filter_height, filter_width, in_channels, out_channels]
-            (input channels of filter is automatically calculated)
         strides: (see 'strides' input to tf.nn.conv2d)
         padding: padding algorithm, either 'SAME' or 'VALID'
         use_cudnn_on_gpu: (default: True) see tf.nn.conv2d

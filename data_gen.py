@@ -23,10 +23,10 @@ class CTScanTestDataProvider(object):
     def __init__(self, npy_folder, a_min=None, a_max=None):
         self.a_min = a_min if a_min is not None else -np.inf
         self.a_max = a_max if a_min is not None else np.inf
-        self.volume_index = 27
+        self.volume_index = -1
         self.volume_depth = -1
         self.frame_index = -2
-        self.num_samples = 130
+        self.num_samples = 28
         self.npy_folder = npy_folder
         self.data = None
         self.label = None
@@ -98,15 +98,14 @@ class CTScanTestDataProvider(object):
     def _cycle_frame(self):
         self.frame_index += 1
         if (self.frame_index >= self.volume_depth or self.frame_index == -1):
-            self.frame_index = 0
+            self.frame_index = -1
             return True
         return False  # returns False if volume is unfinished
 
     def _next_data(self):
         if (self._cycle_frame()):
             self._next_volume()
-            if (not np.any(self.data)):
-                return False, False  # returns False if entire batch is finished
+            return False, False  # returns False if current volume is finished
         return self.data[:, :, self.frame_index], self.label[:, :, self.frame_index]
 
     def _cycle_volume(self):
@@ -116,6 +115,7 @@ class CTScanTestDataProvider(object):
 
     def _next_volume(self):
         if (self._cycle_volume()):
+            self.volume_depth = 0
             self.data, self.label = False, False
             return
         data_path = self.npy_folder + 'volume-' + str(self.volume_index)
@@ -149,17 +149,17 @@ class CTScanTrainDataProvider(object):
     channels = 1
     n_class = 3
 
-    def __init__(self, npy_folder, weighting=None, a_min=None, a_max=None, use_aug=False):
+    def __init__(self, npy_folder, weighting=None, a_min=None, a_max=None, use_aug=True):
         self.a_min = a_min if a_min is not None else -np.inf
         self.a_max = a_max if a_min is not None else np.inf
         self.use_aug = use_aug
-        self.volume_index = -1
+        self.volume_index = 27
         # boolean arrays of what each frame contains
         self.unused_frames = []
         self.bg_frames = []
         self.liver_frames = []  # contain liver but no tumor
         self.tumor_frames = []
-        self.num_samples = 28
+        self.num_samples = 130
         self.npy_folder = npy_folder
         self.weighting = weighting
         self.no_weighting = weighting is None
@@ -218,7 +218,7 @@ class CTScanTrainDataProvider(object):
         return aug_data, aug_labels
 
     def __call__(self, n):
-        if self.volume_index == -1:
+        if self.volume_index < 28:
             self.data, self.label = self._next_volume()
 
         num_frames = len(self.unused_frames)
@@ -272,18 +272,27 @@ class CTScanTrainDataProvider(object):
         X = np.zeros((n, nx, ny, self.channels))
         Y = np.zeros((n, nx, ny, self.n_class))
 
+        aug_on = (random.random() > 0.5) if self.use_aug else False
+
+        if aug_on:
+            train_data, labels = self._augment_data(train_data, labels)
+
         X[0] = train_data
         Y[0] = labels
 
         for i in range(1, n):
-            if i % 2 == 1 and self.use_aug:
+            train_data, labels = self._load_data_and_label()
+            if aug_on:
                 train_data, labels = self._augment_data(train_data, labels)
-            else:
-                train_data, labels = self._load_data_and_label()
 
             X[i] = train_data
             Y[i] = labels
-        return X, Y
+
+        reverse = random.random()
+        if reverse > 0.5:
+            return X[-1::-1, :, :, :], Y[-1::-1, :, :, :]
+        else:
+            return X, Y
 
     def _next_data(self):
         self.frame_index += 1
@@ -292,7 +301,7 @@ class CTScanTrainDataProvider(object):
     def _cycle_volume(self):
         self.volume_index += 1
         if self.volume_index >= self.num_samples:
-            self.volume_index = 0
+            self.volume_index = 28
 
     def _next_volume(self):
         self._cycle_volume()

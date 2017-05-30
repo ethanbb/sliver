@@ -99,4 +99,5 @@ images/
 
 # log dir
 unet_trained/
+runet_trained/
 prediction/

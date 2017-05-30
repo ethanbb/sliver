@@ -20,7 +20,8 @@ class RUnet(unet.Unet):
     All other inputs are the same as the inputs to Unet.__init__.
     """
     def __init__(self, batch_size, n_lstm_layers=1, channels=3, n_class=2,
-                 cost="cross_entropy", cost_kwargs={}, **kwargs):
+                 cost="cross_entropy", cost_kwargs={}, channel_mult=None,
+                 **kwargs):
         tf.reset_default_graph()
         self.batch_size = batch_size
         self.n_class = n_class
@@ -38,10 +39,12 @@ class RUnet(unet.Unet):
         #  batch dimension of feature_maps becomes time points in LSTM
         lstm_input = tf.unstack(feature_maps)
         lstm_input = [tf.expand_dims(x, 0) for x in lstm_input]
-        logits, lstm_variables = create_lstm(lstm_input, n_class, n_lstm_layers, **kwargs)
+        logits, lstm_variables = create_lstm(
+            lstm_input, n_class, n_lstm_layers, channel_mult=channel_mult,
+            **kwargs)
         self.logits = logits
-        self.cost = self._get_cost(logits, cost, cost_kwargs)
         self.variables = unet_variables + lstm_variables
+        self.cost = self._get_cost(logits, cost, cost_kwargs)
         self.liver_dice = -self._get_cost(logits, 'liver_dice')
         self.tumor_dice = -self._get_cost(logits, 'tumor_dice')
         self.gradients_node = tf.gradients(self.cost, self.variables)
@@ -55,22 +58,32 @@ class RUnet(unet.Unet):
         self.saver = tf.train.Saver(var_list=self.variables)
 
 
-def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):
+def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, channel_mult=None, **kwargs):
+    """
+    channel_mult: If not none, list of the multiple of channels to output from each
+                  layer, relative to the input channels. (Defaults to all ones)
+    """
+    if channel_mult is None:
+        channel_mult = np.ones(lstm_layers)
     input_shape = xs[0].shape.as_list()[1:]
     # out channels = in channels
-    channels = input_shape[2]
-    filter_shape = [lstm_filter_size, lstm_filter_size, 2*channels, channels]
+    channels_in = input_shape[2]
+    channels_curr = channels_in
+
     strides = [1, 1, 1, 1]
     padding = 'SAME'
-    stddev = np.sqrt(2 / (lstm_filter_size**2 * channels))
-
-    def weight_init():
-        return weight_variable([lstm_filter_size, lstm_filter_size,
-                                2*channels, channels], stddev)
 
     variables = []
     in_list = xs
     for k_layer in range(lstm_layers):
+        channels_out = int(channels_in * channel_mult[k_layer])
+        stddev = np.sqrt(2 / (lstm_filter_size**2 * channels_out//2))
+        filter_shape = [lstm_filter_size, lstm_filter_size,
+                        channels_curr + channels_out//2, channels_out//2]
+
+        def weight_init():
+            return weight_variable(filter_shape, stddev)
+
         fw_cell = crc.BasicConvLSTMCell(input_shape, filter_shape, strides,
                                         padding, weight_init=weight_init)
         bw_cell = crc.BasicConvLSTMCell(input_shape, filter_shape, strides,
@@ -89,13 +102,14 @@ def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, **kwargs):
                 variables.append(vs.get_variable(crc._WEIGHTS_VARIABLE_NAME))
 
         in_list = ys
+        channels_curr = channels_out
 
     # 1x1 convolution to get logits
     out_tensor = tf.concat(in_list, 0)
-    weight = weight_variable([1, 1, 2*channels, n_class], stddev)
+    weight = weight_variable([1, 1, channels_curr, n_class], stddev)
     bias = bias_variable([n_class])
     conv = conv2d(out_tensor, weight, tf.constant(1.0))
-    output_map = tf.nn.relu(conv + bias)
+    output_map = tf.nn.elu(conv + bias)
     variables.append(weight)
     variables.append(bias)
 
@@ -162,9 +176,9 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         b2 = bias_variable([features])
 
         conv1 = conv2d(in_node, w1, keep_prob)
-        tmp_h_conv = tf.nn.relu(conv1 + b1)
+        tmp_h_conv = tf.nn.elu(conv1 + b1)
         conv2 = conv2d(tmp_h_conv, w2, keep_prob)
-        dw_h_convs[layer] = tf.nn.relu(conv2 + b2)
+        dw_h_convs[layer] = tf.nn.elu(conv2 + b2)
 
         weights.append((w1, w2))
         biases.append((b1, b2))
@@ -185,7 +199,7 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         wd = weight_variable_devonc([pool_size, pool_size,
                                     features//2, features], stddev)
         bd = bias_variable([features//2])
-        h_deconv = tf.nn.relu(deconv2d_runet(in_node, wd, pool_size) + bd)
+        h_deconv = tf.nn.elu(deconv2d_runet(in_node, wd, pool_size) + bd)
         h_deconv_concat = crop_and_concat(dw_h_convs[layer], h_deconv)
         deconv[layer] = h_deconv_concat
 
@@ -197,9 +211,9 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         b2 = bias_variable([features//2])
 
         conv1 = conv2d(h_deconv_concat, w1, keep_prob)
-        h_conv = tf.nn.relu(conv1 + b1)
+        h_conv = tf.nn.elu(conv1 + b1)
         conv2 = conv2d(h_conv, w2, keep_prob)
-        in_node = tf.nn.relu(conv2 + b2)
+        in_node = tf.nn.elu(conv2 + b2)
         up_h_convs[layer] = in_node
 
         dweights.append(wd)

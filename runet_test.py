@@ -5,52 +5,63 @@ import numpy as np
 import runet
 from tf_unet_1 import unet
 
-def get_performance(net, savedir):
+def get_performance(net, model_path):
     generator = CTScanTestDataProvider(npy_folder)
     (data, gt) = generator(batch_size)  # load first volume
     accuracies = []
     liver_dices = []
     tumor_dices = []
-    while True:
-        (data, gt) = generator(batch_size)
-        if data is False:
-            break
-        predictions = []
-        gts = []
-        while data is not False:
-            print(generator.volume_index)
-            predictions.append(net.predict(savedir, data))
-            gts.append(gt)
+
+    # restore model
+    init = tf.global_variables_initializer()
+    with tf.Session() as sess:
+        sess.run(init)
+        net.restore(sess, model_path)
+
+        def predict(x, y):
+            return sess.run(net.predicter,
+                            feed_dict={net.x: x, net.y: y, net.keep_prob: 1.})
+
+        while True:
             (data, gt) = generator(batch_size)
+            if data is False:
+                break
+            predictions = []
+            gts = []
+            while data is not False:
+                print(generator.volume_index)
+                predictions.append(predict(data, gt))
+                gts.append(gt)
+                (data, gt) = generator(batch_size)
 
-        prediction = np.concatenate(predictions, axis=0)
-        gt = np.concatenate(gts, axis=0)
+            prediction = np.concatenate(predictions, axis=0)
+            gt = np.concatenate(gts, axis=0)
 
-        accuracies.append(unet.error_rate(prediction, gt))
+            accuracies.append(unet.error_rate(prediction, gt))
 
-        eps = 1e-5
-        prediction_dense = np.argmax(prediction, axis=3)
-        gt_dense = np.argmax(gt, axis=3)
+            eps = 1e-5
+            prediction_dense = np.argmax(prediction, axis=3)
+            gt_dense = np.argmax(gt, axis=3)
 
-        # liver dice
-        prediction_b = prediction_dense > 0
-        gt_b = gt_dense > 0
+            # liver dice
+            prediction_b = prediction_dense > 0
+            gt_b = gt_dense > 0
 
-        intersection = np.count_nonzero(prediction_b & gt_b)
-        size_pred = np.count_nonzero(prediction_b)
-        size_gt = np.count_nonzero(gt_b)
+            intersection = np.count_nonzero(prediction_b & gt_b)
+            size_pred = np.count_nonzero(prediction_b)
+            size_gt = np.count_nonzero(gt_b)
 
-        liver_dices.append(2. * intersection / (size_pred + size_gt + eps))
+            liver_dices.append(2. * intersection / (size_pred + size_gt + eps))
 
-        # tumor dice
-        prediction_b = prediction_dense > 1
-        gt_b = gt_dense > 1
+            # tumor dice
+            prediction_b = prediction_dense > 1
+            gt_b = gt_dense > 1
 
-        intersection = np.count_nonzero(prediction_b & gt_b)
-        size_pred = np.count_nonzero(prediction_b)
-        size_gt = np.count_nonzero(gt_b)
+            intersection = np.count_nonzero(prediction_b & gt_b)
+            size_pred = np.count_nonzero(prediction_b)
+            size_gt = np.count_nonzero(gt_b)
 
-        tumor_dices.append(2. * intersection / (size_pred + size_gt + eps))
+            tumor_dices.append(2. * intersection / (size_pred + size_gt + eps))
 
     mean_acc = np.mean(accuracies)
     mean_ld = np.mean(liver_dices)

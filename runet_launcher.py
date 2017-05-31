@@ -49,6 +49,7 @@ if __name__ == '__main__':
     # trainer.opt_kwargs["momentum"] = 0
 
     trainer.train(generator2, val_generator, "./runet_trained/stage2",
+                  restore_path="./test_restore/stage1",
                   prediction_path="prediction/stage2",
                   training_iters=training_iters,
                   epochs=epochs2,
@@ -61,13 +62,9 @@ if __name__ == '__main__':
 
     path = trainer.train(generator3, val_generator, "./runet_trained/stage3",
                          prediction_path="prediction/stage3",
+                         restore_path="./test_restore/stage2",
                          training_iters=training_iters,
                          epochs=epochs3,
                          dropout=dropout,
                          display_step=display_step,
                          restore=True)
-
-    x_test, y_test = val_generator(batch_size)
-    prediction = net.predict(path, x_test)
-
-    print("Testing error rate: {:.2f}%".format(unet.error_rate(prediction, util.crop_to_shape(y_test, prediction.shape))))

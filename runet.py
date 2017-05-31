@@ -32,7 +32,7 @@ class RUnet(unet.Unet):
 
         self.keep_prob = tf.placeholder(tf.float32)  # dropout keep probability
 
-        # set up Unet
+        # set up U net
         feature_maps, unet_variables, self.offset = create_conv_net(
             self.x, self.keep_prob, channels, n_class, **kwargs)
 

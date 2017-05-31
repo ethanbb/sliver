@@ -197,14 +197,6 @@ class CTScanTrainDataProvider(object):
             data /= np.amax(data)
         return data
 
-    # def _post_process(self, data, labels):
-    #     """
-    #     Post processing hook that can be used for data augmentation
-    #
-    #     :param data: the data array
-    #     :param labels: the label array
-    #     """
-    #     return data, labels
     def _augment_data(self, data, labels):
         """
         Post processing hook to perform elastic transforms

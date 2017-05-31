@@ -97,6 +97,6 @@ if __name__ == '__main__':
     # print("First stage performance:")
     # print("Acc:", acc1, "Liver Dice:", ld1, "Tumor Dice:", td1)
     print("Second stage performance:")
-    print("Acc:", acc2, "Liver Dice:", ld2, "Tumor Dice:", td2)
+    print("Acc: ", acc2, "Liver Dice: ", ld2, "Tumor Dice: ", td2)
     # print("Third stage performance:")
     # print("Acc:", acc3, "Liver Dice:", ld3, "Tumor Dice:", td3)

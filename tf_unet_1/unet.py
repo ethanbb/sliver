@@ -462,7 +462,7 @@ class Trainer(object):
 
         return optimizer
 
-    def _initialize(self, training_iters, output_path, restore):
+    def _initialize(self, training_iters, output_path, restore_same_dir):
         global_step = tf.Variable(0)
 
         self.norm_gradients_node = tf.Variable(tf.constant(0.0, shape=[len(self.net.gradients_node)]))
@@ -483,7 +483,7 @@ class Trainer(object):
         prediction_path = os.path.abspath(self.prediction_path)
         output_path = os.path.abspath(output_path)
 
-        if not restore:
+        if not restore_same_dir:
             logging.info("Removing '{:}'".format(prediction_path))
             shutil.rmtree(prediction_path, ignore_errors=True)
             logging.info("Removing '{:}'".format(output_path))
@@ -500,13 +500,15 @@ class Trainer(object):
         return init
 
     def train(self, data_provider, val_data_provider, output_path,
-              prediction_path=None, training_iters=10, epochs=100,
-              dropout=0.75, display_step=1, restore=False, write_graph=False):
+              restore_path=None, prediction_path=None, training_iters=10,
+              epochs=100, dropout=0.75, display_step=1, restore=False,
+              write_graph=False):
         """
         Lauches the training process
 
         :param data_provider: callable returning training and verification data
         :param output_path: path where to store checkpoints
+        :param restore_path: if not None, path to restore model from; else equals output path
         :param training_iters: number of training mini batch iteration
         :param epochs: number of epochs
         :param dropout: dropout probability
@@ -521,7 +523,12 @@ class Trainer(object):
         if prediction_path is not None:
             self.prediction_path = prediction_path
 
-        init = self._initialize(training_iters, output_path, restore)
+        restore_same_dir = restore
+        if restore_path is None and restore:
+            restore_path = output_path
+            restore_same_dir = False
+
+        init = self._initialize(training_iters, output_path, restore_same_dir)
 
         with tf.Session() as sess:
             if write_graph:
@@ -530,7 +537,7 @@ class Trainer(object):
             sess.run(init)
 
             if restore:
-                ckpt = tf.train.get_checkpoint_state(output_path)
+                ckpt = tf.train.get_checkpoint_state(restore_path)
                 if ckpt and ckpt.model_checkpoint_path:
                     self.net.restore(sess, ckpt.model_checkpoint_path)
 

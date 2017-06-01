@@ -29,7 +29,7 @@ if __name__ == '__main__':
                       layers=3,
                       features_root=16,
                       cost="avg_class_ce",
-                      cost_kwargs={})
+                      cost_kwargs={"class_weights": [1, 5, 10]})  # bkgd, liver, tumor
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
                            opt_kwargs={"momentum": 0,
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     # trainer.opt_kwargs["momentum"] = 0
 
     trainer.train(generator2, val_generator, "./runet_trained/stage2",
-                  restore_path="./test_restore/stage1",
+                  restore_path="./runet_trained/stage1",
                   prediction_path="prediction/stage2",
                   training_iters=training_iters,
                   epochs=epochs2,
@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
     path = trainer.train(generator3, val_generator, "./runet_trained/stage3",
                          prediction_path="prediction/stage3",
-                         restore_path="./test_restore/stage2",
+                         restore_path="./runet_trained/stage2",
                          training_iters=training_iters,
                          epochs=epochs3,
                          dropout=dropout,

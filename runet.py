@@ -56,6 +56,8 @@ class RUnet(unet.Unet):
         self.correct_pred = tf.equal(tf.argmax(self.predicter, 3), tf.argmax(self.y, 3))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
         self.saver = tf.train.Saver(var_list=self.variables)
+        self.unet_saver = tf.train.Saver(var_list=unet_variables)
+        self.restore_saver = self.saver
 
 
 def create_lstm(xs, n_class, lstm_layers, lstm_filter_size=3, channel_mult=None, **kwargs):

@@ -216,6 +216,7 @@ class Unet(object):
         self.correct_pred = tf.equal(tf.argmax(self.predicter, 3), tf.argmax(self.y, 3))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
         self.saver = tf.train.Saver(var_list=self.variables)
+        self.restore_saver = self.saver
 
     def _get_cost(self, logits, cost_name, cost_kwargs={}):
         """
@@ -422,7 +423,7 @@ class Unet(object):
         :param model_path: path to file system checkpoint location
         """
 
-        self.saver.restore(sess, model_path)
+        self.restore_saver.restore(sess, model_path)
         logging.info("Model restored from file: %s" % model_path)
 
 class Trainer(object):

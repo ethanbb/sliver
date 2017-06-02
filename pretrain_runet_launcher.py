@@ -4,15 +4,11 @@ import runet
 from tf_unet_1 import util
 from data_gen import CTScanTrainDataProvider
 
-if __name__ == '__main__':
-    train_unet()
-    train_runet(restore_dir="./unet_trained/stage3", freeze_unet=False)
-
 def train_unet():
-    training_iters = 20
-    epochs1 = 15
-    epochs2 = 15
-    epochs3 = 15
+    training_iters = 2  # 20
+    epochs1 = 1  # 15
+    epochs2 = 1  # 15
+    epochs3 = 1  # 15
     dropout = 1  # Dropout, probability to keep units
     display_step = 2
 
@@ -69,11 +65,11 @@ def train_unet():
                          display_step=display_step,
                          restore=True)
 
-def train_runet(restore_dir=None, freeze_unet=False):
-    training_iters = 20
-    epochs1 = 15
-    epochs2 = 15
-    epochs3 = 15
+def train_runet(unet_restore_dir=None, freeze_unet=False):
+    training_iters = 2  # 20
+    epochs1 = 1  # 15
+    epochs2 = 1  # 15
+    epochs3 = 1  # 15
     dropout = 1  # Dropout, probability to keep units
     display_step = 2
 
@@ -102,8 +98,11 @@ def train_runet(restore_dir=None, freeze_unet=False):
                                        "learning_rate": 0.15,
                                        "decay_rate": 0.95})
 
+    # set the net to restore only unet variables
+    net.restore_saver = net.unet_saver
+
     trainer.train(generator1, val_generator, "./runet_trained/stage1",
-                  restore_path=restore_dir
+                  restore_path=unet_restore_dir,
                   prediction_path="./runet_prediction/stage1",
                   training_iters=training_iters,
                   epochs=epochs1,
@@ -115,6 +114,9 @@ def train_runet(restore_dir=None, freeze_unet=False):
     # net.set_cost("avg_class_ce", {"class_weights": [2, 3, 7]})
     trainer.opt_kwargs["learning_rate"] = 0.05
     # trainer.opt_kwargs["momentum"] = 0
+
+    # set the net to restore all variables
+    net.restore_saver = net.saver
 
     trainer.train(generator2, val_generator, "./runet_trained/stage2",
                   restore_path="./runet_trained/stage1",
@@ -138,3 +140,8 @@ def train_runet(restore_dir=None, freeze_unet=False):
                   dropout=dropout,
                   restore=True,
                   var_list=var_list)
+
+
+if __name__ == '__main__':
+    train_unet()
+    train_runet(unet_restore_dir="./unet_trained/stage3", freeze_unet=True)

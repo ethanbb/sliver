@@ -446,7 +446,7 @@ class Trainer(object):
         self.opt_kwargs = opt_kwargs
         self.prediction_path = prediction_path
 
-    def _get_optimizer(self, training_iters, global_step):
+    def _get_optimizer(self, training_iters, global_step, var_list):
         if self.optimizer_type == "momentum":
             learning_rate = self.opt_kwargs.get("learning_rate", 0.2)
             decay_rate = self.opt_kwargs.get("decay_rate", 0.95)
@@ -458,17 +458,21 @@ class Trainer(object):
                                                         decay_rate=decay_rate,
                                                         staircase=True)
 
-            optimizer = tf.train.MomentumOptimizer(learning_rate=self.learning_rate_node, momentum=momentum).minimize(self.net.cost, global_step=global_step)
+            optimizer = tf.train.MomentumOptimizer(
+                learning_rate=self.learning_rate_node, momentum=momentum).minimize(
+                self.net.cost, global_step=global_step, var_list=var_list)
 
         elif self.optimizer_type == "adam":
             learning_rate = self.opt_kwargs.get("learning_rate", 0.001)
             self.learning_rate_node = tf.Variable(learning_rate)
 
-            optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_node).minimize(self.net.cost, global_step=global_step)
+            optimizer = tf.train.AdamOptimizer(
+                learning_rate=self.learning_rate_node).minimize(
+                self.net.cost, global_step=global_step, var_list=var_list)
 
         return optimizer
 
-    def _initialize(self, training_iters, output_path, restore_same_dir):
+    def _initialize(self, training_iters, output_path, restore_same_dir, var_list):
         global_step = tf.Variable(0)
 
         self.norm_gradients_node = tf.Variable(tf.constant(0.0, shape=[len(self.net.gradients_node)]))
@@ -480,7 +484,7 @@ class Trainer(object):
         tf.summary.scalar('cross_entropy', self.net.cross_entropy)
         tf.summary.scalar('accuracy', self.net.accuracy)
 
-        self.optimizer = self._get_optimizer(training_iters, global_step)
+        self.optimizer = self._get_optimizer(training_iters, global_step, var_list)
         tf.summary.scalar('learning_rate', self.learning_rate_node)
 
         self.summary_op = tf.summary.merge_all()
@@ -508,7 +512,7 @@ class Trainer(object):
     def train(self, data_provider, val_data_provider, output_path,
               restore_path=None, prediction_path=None, training_iters=10,
               epochs=100, dropout=0.75, display_step=1, restore=False,
-              write_graph=False):
+              write_graph=False, var_list=None):
         """
         Lauches the training process
 
@@ -521,6 +525,7 @@ class Trainer(object):
         :param display_step: number of steps till outputting stats
         :param restore: Flag if previous model should be restored
         :param write_graph: Flag if the computation graph should be written as protobuf file to the output path
+        :param var_list: if not None, specifies which variables should be trained.
         """
         save_path = os.path.join(output_path, "model.cpkt")
         if epochs == 0:
@@ -534,7 +539,7 @@ class Trainer(object):
             restore_path = output_path
             restore_same_dir = False
 
-        init = self._initialize(training_iters, output_path, restore_same_dir)
+        init = self._initialize(training_iters, output_path, restore_same_dir, var_list)
 
         with tf.Session() as sess:
             if write_graph:

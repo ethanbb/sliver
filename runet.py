@@ -39,11 +39,11 @@ class RUnet(unet.Unet):
         #  batch dimension of feature_maps becomes time points in LSTM
         lstm_input = tf.unstack(feature_maps)
         lstm_input = [tf.expand_dims(x, 0) for x in lstm_input]
-        logits, lstm_variables = create_lstm(
+        logits, self.lstm_variables = create_lstm(
             lstm_input, n_class, n_lstm_layers, channel_mult=channel_mult,
             **kwargs)
         self.logits = logits
-        self.variables = unet_variables + lstm_variables
+        self.variables = unet_variables + self.lstm_variables
         self.cost = self._get_cost(logits, cost, cost_kwargs)
         self.liver_dice = -self._get_cost(logits, 'liver_dice')
         self.tumor_dice = -self._get_cost(logits, 'tumor_dice')

@@ -5,10 +5,10 @@ from tf_unet_1 import util
 from data_gen import CTScanTrainDataProvider
 
 def train_unet():
-    training_iters = 2  # 20
-    epochs1 = 1  # 15
-    epochs2 = 1  # 15
-    epochs3 = 1  # 15
+    training_iters = 20
+    epochs1 = 15
+    epochs2 = 15
+    epochs3 = 15
     dropout = 1  # Dropout, probability to keep units
     display_step = 2
 
@@ -25,7 +25,7 @@ def train_unet():
                     layers=3,
                     features_root=16,
                     cost="avg_class_ce",
-                    cost_kwargs={"class_weights": [1, 3, 5]})  # bkgd, liver, tumor
+                    cost_kwargs={"class_weights": [1, 1, 1]})  # bkgd, liver, tumor
 
     trainer = unet.Trainer(net, batch_size=batch_size, optimizer="momentum",
                            opt_kwargs={"momentum": 0,
@@ -66,10 +66,10 @@ def train_unet():
                          restore=True)
 
 def train_runet(unet_restore_dir=None, freeze_unet=False):
-    training_iters = 2  # 20
-    epochs1 = 1  # 15
-    epochs2 = 1  # 15
-    epochs3 = 1  # 15
+    training_iters = 20
+    epochs1 = 15
+    epochs2 = 15
+    epochs3 = 15
     dropout = 1  # Dropout, probability to keep units
     display_step = 2
 

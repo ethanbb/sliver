@@ -5,6 +5,7 @@ import numpy as np
 import runet
 from tf_unet_1 import unet
 
+
 def get_performance(net, model_path):
     generator = CTScanTestDataProvider(npy_folder)
     (data, gt) = generator(batch_size)  # load first volume
@@ -68,6 +69,7 @@ def get_performance(net, model_path):
     mean_td = np.mean(tumor_dices)
 
     return (mean_acc, mean_ld, mean_td)
+
 
 # easy changes here to test the unet
 if __name__ == '__main__':

@@ -95,7 +95,7 @@ if __name__ == '__main__':
     # ckpt = tf.train.get_checkpoint_state("./runet_trained/stage2")
     # acc2, ld2, td2 = get_performance(net, ckpt.model_checkpoint_path)
 
-    ckpt = tf.train.get_checkpoint_state("./runet_transfer_trained/stage3")
+    ckpt = tf.train.get_checkpoint_state("./runet_trained/stage3")
     acc3, ld3, td3 = get_performance(net, ckpt.model_checkpoint_path)
 
     # print("First stage performance:")

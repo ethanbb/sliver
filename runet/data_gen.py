@@ -1,5 +1,10 @@
 from __future__ import print_function, division, absolute_import, unicode_literals
-from elastic_deformation import elastic_transform
+# Path hack.
+import sys
+import os
+sys.path.insert(0, os.path.abspath('..'))
+
+from runet.elastic_deformation import elastic_transform
 
 import numpy as np
 import random

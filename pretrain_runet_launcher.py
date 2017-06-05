@@ -1,8 +1,9 @@
 from __future__ import print_function, division, absolute_import, unicode_literals
-from tf_unet_1 import unet
-import runet
-from tf_unet_1 import util
-from data_gen import CTScanTrainDataProvider
+from runet.tf_unet_1 import unet
+from runet import runet
+from runet.tf_unet_1 import util
+from runet.data_gen import CTScanTrainDataProvider
+
 
 def train_unet():
     training_iters = 20
@@ -40,9 +41,7 @@ def train_unet():
                   display_step=display_step,
                   restore=False)
 
-    # net.set_cost("avg_class_ce", {"class_weights": [2, 3, 7]})
     trainer.opt_kwargs["learning_rate"] = 0.05
-    # trainer.opt_kwargs["momentum"] = 0
 
     trainer.train(generator2, val_generator, "./unet_trained/stage2",
                   restore_path="./unet_trained/stage1",
@@ -53,7 +52,6 @@ def train_unet():
                   display_step=display_step,
                   restore=True)
 
-    # net.set_cost("avg_class_ce", {"class_weights": [1, 1, 9]})
     trainer.opt_kwargs["learning_rate"] = 0.01
 
     path = trainer.train(generator3, val_generator, "./unet_trained/stage3",
@@ -111,9 +109,7 @@ def train_runet(unet_restore_dir=None, freeze_unet=False):
                   restore=True,
                   var_list=var_list)
 
-    # net.set_cost("avg_class_ce", {"class_weights": [2, 3, 7]})
     trainer.opt_kwargs["learning_rate"] = 0.05
-    # trainer.opt_kwargs["momentum"] = 0
 
     # set the net to restore all variables
     net.restore_saver = net.saver
@@ -128,7 +124,6 @@ def train_runet(unet_restore_dir=None, freeze_unet=False):
                   restore=True,
                   var_list=var_list)
 
-    # net.set_cost("avg_class_ce", {"class_weights": [1, 1, 9]})
     trainer.opt_kwargs["learning_rate"] = 0.01
 
     trainer.train(generator3, val_generator, "./runet_trained/stage3",

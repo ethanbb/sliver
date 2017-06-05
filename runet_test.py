@@ -1,11 +1,13 @@
 from __future__ import print_function, division, absolute_import, unicode_literals
-from data_gen import CTScanTestDataProvider
+from runet.data_gen import CTScanTestDataProvider
+from runet import runet
+from runet.tf_unet_1 import unet
+
 import tensorflow as tf
 import numpy as np
-import runet
-from tf_unet_1 import unet
 
 
+# REMEMBER TO SET THE TRAINED MODEL DIRECTORY AT BOTTOM OF FILE.
 def get_performance(net, model_path):
     generator = CTScanTestDataProvider(npy_folder)
     (data, gt) = generator(batch_size)  # load first volume
@@ -93,7 +95,7 @@ if __name__ == '__main__':
     # ckpt = tf.train.get_checkpoint_state("./runet_trained/stage2")
     # acc2, ld2, td2 = get_performance(net, ckpt.model_checkpoint_path)
 
-    ckpt = tf.train.get_checkpoint_state("./runet_trained/stage3")
+    ckpt = tf.train.get_checkpoint_state("./runet_transfer_trained/stage3")
     acc3, ld3, td3 = get_performance(net, ckpt.model_checkpoint_path)
 
     # print("First stage performance:")

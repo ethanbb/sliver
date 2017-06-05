@@ -1,15 +1,20 @@
 from __future__ import print_function, division, absolute_import
+# Path hack.
+import sys
+import os
+sys.path.insert(0, os.path.abspath('..'))
+
 from collections import OrderedDict
 import logging
 import numpy as np
-from tf_unet_1 import unet
-import conv_rnn_cell as crc
-import conv_rnn as cr
+from runet.tf_unet_1 import unet
+import runet.conv_rnn_cell as crc
+import runet.conv_rnn as cr
 from tensorflow.python.ops import variable_scope as vs
-from tf_unet_1.layers import (weight_variable, weight_variable_devonc,
-                              bias_variable, conv2d, deconv2d_runet, max_pool,
-                              crop_and_concat, pixel_wise_softmax_2,
-                              cross_entropy)
+from runet.tf_unet_1.layers import (
+    weight_variable, weight_variable_devonc, bias_variable, conv2d,
+    deconv2d_runet, max_pool, crop_and_concat, pixel_wise_softmax_2,
+    cross_entropy)
 
 import tensorflow as tf
 
@@ -33,7 +38,7 @@ class RUnet(unet.Unet):
         self.keep_prob = tf.placeholder(tf.float32)  # dropout keep probability
 
         # set up U net
-        feature_maps, unet_variables, self.offset = create_conv_net(
+        feature_maps, unet_variables, transfer_variables, self.nontransfer_variables, self.offset = create_conv_net(
             self.x, self.keep_prob, channels, n_class, **kwargs)
 
         #  batch dimension of feature_maps becomes time points in LSTM
@@ -57,6 +62,7 @@ class RUnet(unet.Unet):
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
         self.saver = tf.train.Saver(var_list=self.variables)
         self.unet_saver = tf.train.Saver(var_list=unet_variables)
+        self.transfer_saver = tf.train.Saver(var_list=transfer_variables)
         self.restore_saver = self.saver
 
 
@@ -149,6 +155,10 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
     in_node = x_image
     batch_size = tf.shape(x_image)[0]
 
+    transfer_weights = []
+    transfer_biases = []
+    nontransfer_weights = []
+    nontransfer_biases = []
     weights = []
     biases = []
     dweights = []
@@ -183,7 +193,9 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         dw_h_convs[layer] = tf.nn.elu(conv2 + b2)
 
         weights.append((w1, w2))
+        transfer_weights.append((w1, w2))
         biases.append((b1, b2))
+        transfer_biases.append((b1, b2))
         convs.append((conv1, conv2))
 
         if layer < layers-1:
@@ -221,7 +233,9 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
         dweights.append(wd)
         dbiases.append(bd)
         weights.append((w1, w2))
+        nontransfer_weights.append((w1, w2))
         biases.append((b1, b2))
+        nontransfer_biases.append((b1, b2))
         convs.append((conv1, conv2))
 
         size *= 2
@@ -258,4 +272,25 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=3, features_root=16,
     variables += dweights
     variables += dbiases
 
-    return output_raw, variables, int(in_size - size)
+    transfer_variables = []
+    for w1, w2 in transfer_weights:
+        transfer_variables.append(w1)
+        transfer_variables.append(w2)
+
+    for b1, b2 in transfer_biases:
+        transfer_variables.append(b1)
+        transfer_variables.append(b2)
+
+    nontransfer_variables = []
+    for w1, w2 in nontransfer_weights:
+        nontransfer_variables.append(w1)
+        nontransfer_variables.append(w2)
+
+    for b1, b2 in nontransfer_biases:
+        nontransfer_variables.append(b1)
+        nontransfer_variables.append(b2)
+
+    nontransfer_variables += dweights
+    nontransfer_variables += dbiases
+
+    return output_raw, variables, transfer_variables, nontransfer_variables, int(in_size - size)

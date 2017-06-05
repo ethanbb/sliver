@@ -1,7 +1,7 @@
 # NOTE: TensorFlow version must be 1.0.1
 import tensorflow as tf
-import conv_rnn_cell
-import conv_rnn
+import runet.conv_rnn_cell
+import runet.conv_rnn
 
 sess = tf.InteractiveSession()
 

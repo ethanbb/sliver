@@ -49,6 +49,9 @@ def deconv2d_runet(x, W, stride):
 def max_pool(x,n):
     return tf.nn.max_pool(x, ksize=[1, n, n, 1], strides=[1, n, n, 1], padding='VALID')
 
+def avg_pool(x, n):
+    return tf.nn.avg_pool(x, ksize=[1, n, n, 1], strides=[1, n, n, 1], padding='VALID')
+
 def crop_and_concat(x1,x2):
     x1_shape = tf.shape(x1)
     x2_shape = tf.shape(x2)

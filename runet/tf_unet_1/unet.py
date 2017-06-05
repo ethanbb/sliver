@@ -27,10 +27,10 @@ import logging
 
 import tensorflow as tf
 
-from tf_unet_1 import util
-from tf_unet_1.layers import (weight_variable, weight_variable_devonc, bias_variable,
-                            conv2d, deconv2d, max_pool, crop_and_concat, pixel_wise_softmax_2,
-                            cross_entropy)
+from ..tf_unet_1 import util
+from ..tf_unet_1.layers import (weight_variable, weight_variable_devonc, bias_variable,
+                                conv2d, deconv2d, max_pool, crop_and_concat, pixel_wise_softmax_2,
+                                cross_entropy)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
@@ -622,7 +622,7 @@ class Trainer(object):
 
     def output_minibatch_stats(self, sess, summary_writer, step, batch_x, batch_y):
         # Calculate batch loss and accuracy
-        summary_str, loss, acc, ld, td = sess.run([self.summary_op, self.net.cost, self.net.accuracy, self.net.liver_dice, self.net.tumor_dice],
+        summary_str, loss, acc, ld, td = sess.run((self.summary_op, self.net.cost, self.net.accuracy, self.net.liver_dice, self.net.tumor_dice),
                                           feed_dict={self.net.x: batch_x,
                                                      self.net.y: batch_y,
                                                      self.net.keep_prob: 1.})
